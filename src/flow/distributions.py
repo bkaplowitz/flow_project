@@ -68,7 +68,7 @@ class GaussianMixture(nn.Module, Sampleable, Density):
         return D.MixtureSameFamily(
             mixture_distribution=D.Categorical(probs=self.weights, validate_args=False),
             component_distribution=D.MultivariateNormal(
-                loc=self.means, cov=self.cov, validate_args=False
+                loc=self.means, covariance_matrix=self.covs, validate_args=False
             ),
             validate_args=False,
         )
