@@ -2,9 +2,10 @@
 Basic ODE abstract base-classes.
 """
 
-from typing import ABC, TYPECHECKING, abstractmethod
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-if TYPECHECKING:
+if TYPE_CHECKING:
     from torch import Tensor
 
 

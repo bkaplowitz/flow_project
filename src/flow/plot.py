@@ -2,8 +2,6 @@
 Plotting helpers.
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -11,7 +9,7 @@ import seaborn as sns
 import torch
 
 if TYPE_CHECKING:
-    from matplotlib.axes import Axes
+    from matplotlib.axes._axes import Axes
 
     from src.types.simulator import Simulator
 
@@ -19,32 +17,35 @@ if TYPE_CHECKING:
 def plot_trajectories_1d(
     x0: torch.Tensor,
     simulator: Simulator,
-    timesteps: torch.Tensor,
+    ts: torch.Tensor,
     ax: Axes | None = None,
     show_hist: bool = False,
     decouple_hist_axis: bool = False,
 ):
-    """Graph trajectories of a 1D SDE.
-
+    """
+    Graphs the trajectories of a one-dimensional SDE with given initial values (x0)
+    and simulation timesteps (ts).
     Args:
         x0: state at time t, shape (num_trajectories, 1)
         simulator: Simulator object used to simulate
-        timesteps: timesteps to simulate along, shape (num_timesteps,)
+        ts: timesteps to simulate along, shape (num_timesteps,)
         ax: pyplot Axes object to plot on
         decouple_hist_axis: if True, don't share y-axis between
             trajectories and histogram
     """
     if ax is None:
         ax = plt.gca()
-    trajectories = simulator.simulate_with_trajectory(x0, timesteps)
+    # (num_trajectories, num_timesteps, ...)
+    trajectories = simulator.simulate_with_trajectory(x0, ts)
 
     line_color = sns.color_palette("crest", 1)[0]
     hist_color = sns.color_palette("flare", 1)[0]
     label_size = 12
     tick_size = 10
 
-    timesteps_cpu = timesteps.detach().cpu().numpy()
+    timesteps_cpu = ts.detach().cpu().numpy()
     for trajectory_idx in range(trajectories.shape[0]):
+        # (num_timesteps,)
         trajectory = trajectories[trajectory_idx, :, 0].detach().cpu().numpy()
         sns.lineplot(
             x=timesteps_cpu,
@@ -114,11 +115,4 @@ def plot_trajectories_1d(
             x_center = 0.5 * (left + right)
             y = top + 0.005
 
-            fig.text(
-                x_center,
-                y,
-                title,
-                ha="center",
-                va="bottom",
-                fontsize=title_size,
-            )
+            fig.text(x_center, y, title, ha="center", va="bottom", fontsize=title_size)

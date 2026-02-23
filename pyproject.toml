@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "flow-project"
+name = "flow"
 version = "0.1.0"
 description = "Flow matching project practice"
 readme = "README.md"
@@ -38,7 +38,7 @@ line-length = 88
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src/flow"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
