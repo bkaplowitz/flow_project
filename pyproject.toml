@@ -42,3 +42,9 @@ packages = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.2",
+    "snakeviz>=2.2.2",
+]
