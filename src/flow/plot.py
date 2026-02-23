@@ -11,7 +11,7 @@ import torch
 if TYPE_CHECKING:
     from matplotlib.axes._axes import Axes
 
-    from src.types.simulator import Simulator
+    from flow.types.simulator import Simulator
 
 
 def plot_trajectories_1d(

@@ -12,6 +12,7 @@ dependencies = [
     "ipykernel>=7.2.0",
     "jupyter>=1.1.1",
     "jupyterlab>=4.5.4",
+    "marimo>=0.20.2",
     "matplotlib>=3.10.8",
     "nbconvert>=7.17.0",
     "nbformat>=5.10.4",
@@ -45,6 +46,7 @@ testpaths = ["tests"]
 
 [dependency-groups]
 dev = [
+    "marimo>=0.20.2",
     "ruff>=0.15.2",
     "snakeviz>=2.2.2",
 ]
