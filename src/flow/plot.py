@@ -11,7 +11,16 @@ import torch
 if TYPE_CHECKING:
     from matplotlib.axes._axes import Axes
 
+    from flow.types.probability import Density, Sampleable
     from flow.types.simulator import Simulator
+
+device = torch.device(
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps"
+    if torch.backends.mps.is_available()
+    else "cpu"
+)
 
 
 def plot_trajectories_1d(
@@ -116,3 +125,52 @@ def plot_trajectories_1d(
             y = top + 0.005
 
             fig.text(x_center, y, title, ha="center", va="bottom", fontsize=title_size)
+
+
+# Several plotting utility functions
+def hist2d_sampleable(
+    sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs
+):
+    if ax is None:
+        ax = plt.gca()
+    samples = sampleable.sample(num_samples)  # (ns, 2)
+    ax.hist2d(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
+
+
+def scatter_sampleable(
+    sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs
+):
+    if ax is None:
+        ax = plt.gca()
+    samples = sampleable.sample(num_samples)  # (ns, 2)
+    ax.scatter(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
+
+
+def imshow_density(
+    density: Density, bins: int, scale: float, ax: Axes | None = None, **kwargs
+):
+    if ax is None:
+        ax = plt.gca()
+    x = torch.linspace(-scale, scale, bins).to(device)
+    y = torch.linspace(-scale, scale, bins).to(device)
+    X, Y = torch.meshgrid(x, y)
+    xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
+    density = density.log_density(xy).reshape(bins, bins).T
+    ax.imshow(
+        density.cpu(), extent=[-scale, scale, -scale, scale], origin="lower", **kwargs
+    )
+
+
+def contour_density(
+    density: Density, bins: int, scale: float, ax: Axes | None = None, **kwargs
+):
+    if ax is None:
+        ax = plt.gca()
+    x = torch.linspace(-scale, scale, bins).to(device)
+    y = torch.linspace(-scale, scale, bins).to(device)
+    X, Y = torch.meshgrid(x, y)
+    xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
+    density = density.log_density(xy).reshape(bins, bins).T
+    ax.contour(
+        density.cpu(), extent=[-scale, scale, -scale, scale], origin="lower", **kwargs
+    )

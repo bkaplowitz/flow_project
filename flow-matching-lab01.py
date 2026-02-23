@@ -7,14 +7,13 @@ app = marimo.App()
 @app.cell
 def _():
     import torch
-    from matplotlib import pyplot as plt
     from torch import Tensor
 
     from flow.plot import plot_trajectories_1d
     from flow.types.ode import ODE, SDE
     from flow.types.simulator import Simulator
 
-    return ODE, SDE, Simulator, Tensor, plot_trajectories_1d, plt, torch
+    return ODE, SDE, Simulator, Tensor, plot_trajectories_1d, torch
 
 
 @app.cell
@@ -79,9 +78,10 @@ def _(
     EulerMaruyamaSimulator,
     device,
     plot_trajectories_1d,
-    plt,
     torch,
 ):
+    from matplotlib import pyplot as plt
+
     sigma = 1.0
     n_traj = 500
     brownian_motion = BrownianMotion(sigma)
@@ -99,6 +99,50 @@ def _(
     plot_trajectories_1d(x0, simulator, ts, ax, show_hist=True)
     plt.show()
 
+    return (plt,)
+
+
+@app.cell
+def _(device, plt, torch):
+
+    from flow.distributions import Gaussian, GaussianMixture
+    from flow.plot import contour_density, imshow_density
+
+    # Visualize densities
+    densities = {
+        "Gaussian": Gaussian(mean=torch.zeros(2), cov=10 * torch.eye(2)).to(device),
+        "Random Mixture": GaussianMixture.random_2D(
+            nmodes=5, std=1.0, scale=20.0, seed=3.0
+        ).to(device),
+        "Symmetric Mixture": GaussianMixture.symmetric_2D(
+            nmodes=5, std=1.0, scale=8.0
+        ).to(device),
+    }
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    bins = 100
+    scale = 15
+    for idx, (name, density) in enumerate(densities.items()):
+        ax5 = axes[idx]
+        ax5.set_title(name)
+        imshow_density(density, bins, scale, ax5, vmin=-15, cmap=plt.get_cmap("Blues"))
+        contour_density(
+            density,
+            bins,
+            scale,
+            ax5,
+            colors="grey",
+            linestyles="solid",
+            alpha=0.25,
+            levels=20,
+        )
+    plt.show()
+
+    return
+
+
+@app.cell
+def _():
     return
 
 
