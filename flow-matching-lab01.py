@@ -7,13 +7,12 @@ app = marimo.App()
 @app.cell
 def _():
     import torch
-    from torch import Tensor
 
     from flow.plot import plot_trajectories_1d
-    from flow.types.ode import ODE, SDE
-    from flow.types.simulator import Simulator
+    from flow.sde import BrownianMotion
+    from flow.simulator import EulerMaruyamaSimulator
 
-    return ODE, SDE, Simulator, Tensor, plot_trajectories_1d, torch
+    return BrownianMotion, EulerMaruyamaSimulator, plot_trajectories_1d, torch
 
 
 @app.cell
@@ -30,46 +29,13 @@ def _(torch):
 
 
 @app.cell
-def _(ODE, SDE, Simulator, Tensor, torch):
-    class EulerSimulator(Simulator):
-        """Euler method for ODE simulation. Integrades ODE"""
-
-        def __init__(self, ode: ODE):
-            self.ode = ode
-
-        def step(self, xt: Tensor, t: Tensor, h: Tensor) -> Tensor:
-            return xt + self.ode.drift_coef(xt, t) * h
-
-    class EulerMaruyamaSimulator(Simulator):
-        """Euler-Maruyama method for SDE Simulation. Integrates SDE"""
-
-        def __init__(self, sde: SDE):
-            self.sde = sde
-
-        def step(self, xt: Tensor, t: Tensor, h: Tensor) -> Tensor:
-            z = torch.randn_like(xt)
-            return (
-                xt
-                + self.sde.drift_coef(xt, t) * h
-                + self.sde.diffusion_coef(xt, t) * torch.sqrt(h) * z
-            )
-
-    return (EulerMaruyamaSimulator,)
+def _():
+    return
 
 
 @app.cell
-def _(SDE, Tensor, torch):
-    class BrownianMotion(SDE):
-        def __init__(self, sigma: float) -> None:
-            self.sigma = sigma
-
-        def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
-            return torch.zeros_like(xt)
-
-        def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
-            return self.sigma * torch.ones_like(xt)
-
-    return (BrownianMotion,)
+def _():
+    return
 
 
 @app.cell
