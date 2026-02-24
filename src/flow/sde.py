@@ -19,3 +19,15 @@ class BrownianMotion(SDE):
 
     def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
         return self.sigma * torch.ones_like(xt)
+
+
+class OrnsteinUhlenbeckProcess(SDE):
+    def __init__(self, theta: Tensor, sigma: Tensor) -> Tensor:
+        self.theta = theta
+        self.sigma = sigma
+
+    def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+        return -self.theta * torch.ones_like(xt)  # shape: (bs, dim)
+
+    def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+        return self.sigma * torch.ones_like(xt)  # shape: (bs, dim)

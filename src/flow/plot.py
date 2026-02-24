@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
+from matplotlib.colors import Colormap
 
 if TYPE_CHECKING:
     from matplotlib.axes._axes import Axes
@@ -14,12 +15,9 @@ if TYPE_CHECKING:
     from flow.types.probability import Density, Sampleable
     from flow.types.simulator import Simulator
 
+
 device = torch.device(
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
+    "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 )
 
 
@@ -74,9 +72,7 @@ def plot_trajectories_1d(
     if show_hist:
         terminal_points = trajectories[:, -1, 0].detach().cpu().numpy()
         data_range = (
-            float(terminal_points.max() - terminal_points.min())
-            if terminal_points.size
-            else 1.0
+            float(terminal_points.max() - terminal_points.min()) if terminal_points.size else 1.0
         )
         binwidth = max(data_range / 25.0, 0.05)
 
@@ -128,27 +124,21 @@ def plot_trajectories_1d(
 
 
 # Several plotting utility functions
-def hist2d_sampleable(
-    sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs
-):
+def hist2d_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
     if ax is None:
         ax = plt.gca()
     samples = sampleable.sample(num_samples)  # (ns, 2)
     ax.hist2d(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
 
 
-def scatter_sampleable(
-    sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs
-):
+def scatter_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
     if ax is None:
         ax = plt.gca()
     samples = sampleable.sample(num_samples)  # (ns, 2)
     ax.scatter(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
 
 
-def imshow_density(
-    density: Density, bins: int, scale: float, ax: Axes | None = None, **kwargs
-):
+def imshow_density(density: Density, bins: int, scale: float, ax: Axes | None = None, **kwargs):
     if ax is None:
         ax = plt.gca()
     x = torch.linspace(-scale, scale, bins).to(device)
@@ -156,14 +146,10 @@ def imshow_density(
     X, Y = torch.meshgrid(x, y)
     xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
     density = density.log_density(xy).reshape(bins, bins).T
-    ax.imshow(
-        density.cpu(), extent=[-scale, scale, -scale, scale], origin="lower", **kwargs
-    )
+    ax.imshow(density.cpu(), extent=[-scale, scale, -scale, scale], origin="lower", **kwargs)
 
 
-def contour_density(
-    density: Density, bins: int, scale: float, ax: Axes | None = None, **kwargs
-):
+def contour_density(density: Density, bins: int, scale: float, ax: Axes | None = None, **kwargs):
     if ax is None:
         ax = plt.gca()
     x = torch.linspace(-scale, scale, bins).to(device)
@@ -171,6 +157,33 @@ def contour_density(
     X, Y = torch.meshgrid(x, y)
     xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
     density = density.log_density(xy).reshape(bins, bins).T
-    ax.contour(
-        density.cpu(), extent=[-scale, scale, -scale, scale], origin="lower", **kwargs
-    )
+    ax.contour(density.cpu(), extent=[-scale, scale, -scale, scale], origin="lower", **kwargs)
+
+
+def plot_2d_densities(
+    densities: dict[str, Density],
+    bins=100,
+    scale=15,
+    figsize=(18, 6),
+    subplots_dim=(1, 3),
+    vmin=-15,
+    cmap: Colormap | None = None,
+) -> None:
+    if cmap is None:
+        cmap = plt.get_cmap("Blues")
+    fig, axes = plt.subplots(*subplots_dim, figsize=figsize)
+    for idx, (name, density) in enumerate(densities.items()):
+        ax = axes[idx]
+        ax.set_title(name)
+        imshow_density(density, bins, scale, ax, vmin=vmin, cmap=cmap)
+        contour_density(
+            density,
+            bins,
+            scale,
+            ax,
+            colors="grey",
+            linestyle="solid",
+            alpha=0.25,
+            levels=20,
+        )
+    plt.show()

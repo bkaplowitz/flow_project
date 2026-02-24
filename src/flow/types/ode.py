@@ -26,7 +26,7 @@ class ODE(ABC):
 class SDE(ABC):
     @abstractmethod
     def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
-        """drift coefficient of associated ODE
+        """drift coefficient of associated SDE.
 
         Args:
             - xt, state at time t shape (bs, dim)
