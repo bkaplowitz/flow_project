@@ -9,12 +9,13 @@ def _():
     import torch
 
     from flow.plot import plot_trajectories_1d
-    from flow.sde import BrownianMotion, OrnsteinUhlenbeckProcess
+    from flow.sde import BrownianMotion, LangevinSDE, OrnsteinUhlenbeckProcess
     from flow.simulator import EulerMaruyamaSimulator
 
     return (
         BrownianMotion,
         EulerMaruyamaSimulator,
+        LangevinSDE,
         OrnsteinUhlenbeckProcess,
         plot_trajectories_1d,
         torch,
@@ -78,7 +79,7 @@ def _(device, plt, torch):
     }
     plot_2d_densities(densities, bins=100, scale=15, vmin=-15, cmap=plt.get_cmap("Blues"))
 
-    return
+    return Gaussian, GaussianMixture
 
 
 @app.cell
@@ -142,7 +143,32 @@ def _(
 
 
 @app.cell
-def _():
+def _(
+    EulerMaruyamaSimulator,
+    Gaussian,
+    GaussianMixture,
+    LangevinSDE,
+    device,
+    torch,
+):
+    # Construct the simulator
+    target = GaussianMixture.random_2D(nmodes=5, std=0.75, scale=15.0, seed=3.0).to(device)
+    langevin_sde = LangevinSDE(sigma=0.6, density=target)
+    langevin_simulator = EulerMaruyamaSimulator(sde=langevin_sde)
+    from flow.plot import graph_dynamics
+
+    # Graph the results!
+    graph_dynamics(
+        num_samples=1000,
+        source_distribution=Gaussian(mean=torch.zeros(2), cov=20 * torch.eye(2)).to(device),
+        simulator=langevin_simulator,
+        density=target,
+        timesteps=torch.linspace(0, 5.0, 1000).to(device),
+        plot_every=334,
+        bins=200,
+        scale=15,
+    )
+
     return
 
 
