@@ -8,7 +8,7 @@ app = marimo.App()
 def _():
     import torch
 
-    from flow.plot import plot_trajectories_1d
+    from flow.plot import graph_dynamics, plot_trajectories_1d
     from flow.sde import BrownianMotion, LangevinSDE, OrnsteinUhlenbeckProcess
     from flow.simulator import EulerMaruyamaSimulator
 
@@ -17,6 +17,7 @@ def _():
         EulerMaruyamaSimulator,
         LangevinSDE,
         OrnsteinUhlenbeckProcess,
+        graph_dynamics,
         plot_trajectories_1d,
         torch,
     )
@@ -149,13 +150,13 @@ def _(
     GaussianMixture,
     LangevinSDE,
     device,
+    graph_dynamics,
     torch,
 ):
     # Construct the simulator
     target = GaussianMixture.random_2D(nmodes=5, std=0.75, scale=15.0, seed=3.0).to(device)
     langevin_sde = LangevinSDE(sigma=0.6, density=target)
     langevin_simulator = EulerMaruyamaSimulator(sde=langevin_sde)
-    from flow.plot import graph_dynamics
 
     # Graph the results!
     graph_dynamics(
