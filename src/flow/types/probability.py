@@ -4,8 +4,8 @@ Basic Densities and Probabilities
 
 from abc import ABC, abstractmethod
 
+import torch
 from torch import Tensor
-from torch.func import jacrev, vmap
 
 
 class Density(ABC):
@@ -27,16 +27,18 @@ class Density(ABC):
 
     def score(self, x: Tensor) -> Tensor:
         """
-        Returns the score at x: \grad log_density(x) or dx log_density(x)
+        Returns the score at x: \\grad log_density(x) or dx log_density(x)
 
         Args:
             - x: (bs, dim)
         Returns:
             - score: (bs, dim)
         """
-        x = x.unsqueeze(1)  # (bs, 1, dim)
-        score = vmap(jacrev(self.log_density))(x)  # bs, 1, 1, 1, dim
-        return score.squeeze((1, 2, 3))  # (bs, dim)
+        with torch.enable_grad():
+            x = x.detach().requires_grad_(True)
+            log_p = self.log_density(x)  # (bs, 1)
+            grad = torch.autograd.grad(log_p.sum(), x)[0]
+        return grad.detach()
 
 
 class Sampleable(ABC):

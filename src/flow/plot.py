@@ -2,11 +2,16 @@
 Plotting helpers.
 """
 
+import os
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 import torch
+from celluloid import Camera
+from IPython.display import HTML
+from matplotlib import cm
 from matplotlib.colors import Colormap
 
 if TYPE_CHECKING:
@@ -15,7 +20,7 @@ if TYPE_CHECKING:
     from flow.types.probability import Density, Sampleable
     from flow.types.simulator import Simulator
 
-
+BLUES_CMAP: Colormap = plt.get_cmap("Blues")
 device = torch.device(
     "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 )
@@ -123,6 +128,26 @@ def plot_trajectories_1d(
             fig.text(x_center, y, title, ha="center", va="bottom", fontsize=title_size)
 
 
+def hist2d_samples(
+    samples,
+    ax: Axes | None = None,
+    bins: int = 200,
+    scale: float = 5.0,
+    percentile: int = 99,
+    **kwargs,
+):
+    H, xedges, yedges = np.histogram2d(
+        samples[:, 0], samples[:, 1], bins=bins, range=[[-scale, scale], [-scale, scale]]
+    )
+    cmax = np.percentile(H, percentile)
+    cmin = 0.0
+    norm = cm.colors.Normalize(vmax=cmax, vmin=cmin)
+
+    # Plot with imshow
+    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    ax.imshow(H.T, extent=extent, origin="lower", norm=norm, **kwargs)
+
+
 # Several plotting utility functions
 def hist2d_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
     if ax is None:
@@ -136,6 +161,14 @@ def scatter_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None
         ax = plt.gca()
     samples = sampleable.sample(num_samples)  # (ns, 2)
     ax.scatter(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
+
+
+def kdeplot_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
+    assert sampleable.dims == 2
+    if ax is None:
+        ax = plt.gca()
+    samples = sampleable.sample(num_samples)
+    sns.kdeplot(x=samples[:, 0].cpu(), y=samples[:, 1].cpu(), ax=ax, **kwargs)
 
 
 def imshow_density(density: Density, bins: int, scale: float, ax: Axes | None = None, **kwargs):
@@ -167,10 +200,8 @@ def plot_2d_densities(
     figsize=(18, 6),
     subplots_dim=(1, 3),
     vmin=-15,
-    cmap: Colormap | None = None,
+    cmap: Colormap = BLUES_CMAP,
 ) -> None:
-    if cmap is None:
-        cmap = plt.get_cmap("Blues")
     fig, axes = plt.subplots(*subplots_dim, figsize=figsize)
     for idx, (name, density) in enumerate(densities.items()):
         ax = axes[idx]
@@ -264,3 +295,64 @@ def graph_dynamics(
         kdeplot_ax.set_ylabel("")
 
     plt.show()
+
+
+def animate_dynamics(
+    num_samples: int,
+    source_distribution: Sampleable,
+    simulator: Simulator,
+    density: Density,
+    timesteps: torch.Tensor[torch.int64],
+    animate_every: int,
+    bins: int,
+    scale: float,
+    save_path: os.PathLike = "dynamics_animation.mp4",
+) -> None:
+    """
+    Plot the evolution of samples from source under simulation
+    Args:
+        - num_samples: number of samples to simulate
+        - source_distribution: initial distribution for samples
+        - simulator: simulates samples by iterating on timesteps
+        - density: target distribution (assumes a density)
+        - timesteps: timesteps to simulate for. Gives discretization for process. Shape nts
+        - animate_every: how frequently to update animation.
+        - bins: histogram bins for kde plot
+        - scale: scaling for kde plot
+        - save_path: Pathlike savepath
+    """
+    # Simulate
+    x0 = source_distribution.sample(num_samples)
+    xts = simulator.simulate_with_trajectory(x0, timesteps)  # (batch, dims)
+    indices_to_animate = every_nth_index(len(timesteps), animate_every)
+    animate_timesteps = timesteps[indices_to_animate]
+    animate_xts = xts[:, indices_to_animate]
+    # Graph
+    fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+    camera: Camera = Camera(fig)
+    for t_idx in range(len(animate_timesteps)):
+        animate_timesteps[t_idx].item()
+        xt = animate_xts[:, t_idx]
+        scatter_ax = axes[0]
+        imshow_density(
+            density, bins, scale, scatter_ax, vmin=-15, alpha=0.25, cmap=plt.get_cmap("Blues")
+        )
+        scatter_ax.scatter(
+            xt[:, 0].cpu(), xt[:, 1].cpu(), marker="x", color="black", alpha=0.75, s=15
+        )
+        scatter_ax.set_title("Samples")
+
+        # KDE Plots
+        kdeplot_ax = axes[1]
+        imshow_density(density, bins, scale, kdeplot_ax, vmin=-15, alpha=0.5, cmap=BLUES_CMAP)
+        sns.kdeplot(x=xt[:, 0].cpu(), y=xt[:, 1].cpu(), alpha=0.5, ax=kdeplot_ax, color="gray")
+        kdeplot_ax.set_title("Density of Samples", fontsize=15)
+        kdeplot_ax.set_xticks([])
+        kdeplot_ax.set_yticks([])
+        kdeplot_ax.set_xlabel("")
+        kdeplot_ax.set_ylabel("")
+        camera.snap()
+    animation = camera.animate()
+    animation.save(save_path)
+    plt.close()
+    return HTML(animation.to_html5_video())

@@ -32,12 +32,12 @@ class OrnsteinUhlenbeckProcess(SDE):
     - Diffusion $\sigma_t(X_t) = \sigma$.
     """
 
-    def __init__(self, theta: Tensor, sigma: float) -> Tensor:
+    def __init__(self, theta: float, sigma: float) -> Tensor:
         self.theta = theta
         self.sigma = sigma
 
     def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
-        return -self.theta * torch.ones_like(xt)  # shape: (bs, dim)
+        return -self.theta * xt  # shape: (bs, dim)
 
     def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
         return self.sigma * torch.ones_like(xt)  # shape: (bs, dim)
@@ -56,7 +56,7 @@ class LangevinSDE(SDE):
         self.density = density
 
     def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
-        return 1 / 2 * self.sigma**2 * self.density.score(xt)
+        return 0.5 * self.sigma**2 * self.density.score(xt)
 
     def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
         return self.sigma * torch.ones_like(xt)

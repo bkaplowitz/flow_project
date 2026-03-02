@@ -34,6 +34,15 @@ class Gaussian(nn.Module, Sampleable, Density):
     def log_density(self, x: Tensor) -> Tensor:
         return self.distribution.log_prob(x).view(-1, 1)
 
+    @classmethod
+    def isotropic(cls, dim: int, std: float) -> "Gaussian":
+        """
+        Constructs an isotropic gaussian of dim `dim` and std `std`.
+        """
+        mean = torch.zeros(dim)
+        cov = torch.eye(dim) * std**2
+        return cls(mean, cov)
+
 
 class GaussianMixture(nn.Module, Sampleable, Density):
     """Two-dimensional Gaussian mixture model.
@@ -80,24 +89,20 @@ class GaussianMixture(nn.Module, Sampleable, Density):
         return self.distribution.sample(torch.Size((num_samples,)))
 
     @classmethod
-    def random_2D(
-        cls, nmodes: int, std: float, scale: float = 10.0, seed=0.0
-    ) -> "GaussianMixture":
-        rng = torch.random.manual_seed(seed)
-        means = (torch.rand((nmodes, 2), generator=rng) - 0.5) * scale
+    def random_2D(cls, nmodes: int, std: float, scale: float = 10.0, seed=0.0) -> "GaussianMixture":
+        torch.manual_seed(seed)
+        means = (torch.rand(nmodes, 2) - 0.5) * scale
         # Diagonal cov matrix
-        covs = torch.diag_embed(torch.ones((nmodes, 2))) * std**2
-        weights = torch.ones(nmodes) / nmodes
+        covs = torch.diag_embed(torch.ones(nmodes, 2)) * std**2
+        weights = torch.ones(nmodes) / nmodes  # uniform
         return cls(means, covs, weights)
 
     @classmethod
-    def symmetric_2D(
-        cls, nmodes: int, std: float, scale: float = 10.0
-    ) -> "GaussianMixture":
+    def symmetric_2D(cls, nmodes: int, std: float, scale: float = 10.0) -> "GaussianMixture":
         # only select nmodes, exclude 2pi position duplicate
         angles = torch.linspace(0, 2 * np.pi, nmodes + 1)[:nmodes]
         # embed means via polar coords
         means = torch.stack([torch.cos(angles), torch.sin(angles)], dim=1) * scale
-        covs = torch.diag_embed(torch.ones((nmodes, 2))) * std**2
+        covs = torch.diag_embed(torch.ones(nmodes, 2)) * std**2
         weights = torch.ones(nmodes) / nmodes
         return cls(means, covs, weights)

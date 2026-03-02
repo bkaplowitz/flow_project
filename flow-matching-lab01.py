@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.11"
+__generated_with = "0.20.2"
 app = marimo.App()
 
 
@@ -8,7 +8,7 @@ app = marimo.App()
 def _():
     import torch
 
-    from flow.plot import graph_dynamics, plot_trajectories_1d
+    from flow.plot import animate_dynamics, graph_dynamics, plot_trajectories_1d
     from flow.sde import BrownianMotion, LangevinSDE, OrnsteinUhlenbeckProcess
     from flow.simulator import EulerMaruyamaSimulator
 
@@ -17,6 +17,7 @@ def _():
         EulerMaruyamaSimulator,
         LangevinSDE,
         OrnsteinUhlenbeckProcess,
+        animate_dynamics,
         graph_dynamics,
         plot_trajectories_1d,
         torch,
@@ -46,16 +47,16 @@ def _(
 ):
     from matplotlib import pyplot as plt
 
-    _sigma = 1.0
-    _n_traj = 500
-    brownian_motion = BrownianMotion(_sigma)
+    sigma_brown = 1.0
+    n_traj_brown = 500
+    brownian_motion = BrownianMotion(sigma_brown)
     simulator = EulerMaruyamaSimulator(sde=brownian_motion)
-    x0 = torch.zeros(_n_traj, 1).to(device)  # Initial values - let's start at zero
+    x0 = torch.zeros(n_traj_brown, 1).to(device)  # Initial values - let's start at zero
     ts = torch.linspace(0.0, 5.0, 500).to(device)  # simulation timesteps
 
     plt.figure(figsize=(9, 6))
     ax = plt.gca()
-    ax.set_title(r"Trajectories of Brownian Motion with $\sigma=$" + str(_sigma), fontsize=18)
+    ax.set_title(r"Trajectories of Brownian Motion with $\sigma=$" + str(sigma_brown), fontsize=18)
     ax.set_xlabel(r"time ($t$)", fontsize=18)
     ax.set_ylabel(r"$x_t$", fontsize=18)
     plot_trajectories_1d(x0, simulator, ts, ax, show_hist=True)
@@ -104,35 +105,35 @@ def _(
     fig, axes = plt.subplots(2, num_plots, figsize=(10.5 * num_plots, 15))
 
     # Top row: dynamics
-    _n_traj = 10
-    for _idx, (_theta, _sigma) in enumerate(thetas_and_sigmas):
-        ou_process = OrnsteinUhlenbeckProcess(_theta, _sigma)
+    n_traj_comp = 10
+    for idx_comp, (theta_comp, sigma_comp) in enumerate(thetas_and_sigmas):
+        ou_process = OrnsteinUhlenbeckProcess(theta_comp, sigma_comp)
         ou_simulator = EulerMaruyamaSimulator(sde=ou_process)
         _x0 = (
-            torch.linspace(-10.0, 10.0, _n_traj).view(-1, 1).to(device)
+            torch.linspace(-10.0, 10.0, n_traj_comp).view(-1, 1).to(device)
         )  # Initial values - let's start at zero
         _ts = torch.linspace(0.0, simulation_time, 1000).to(device)  # simulation timesteps
 
-        ax1 = axes[0, _idx]
+        ax1 = axes[0, idx_comp]
         ax1.set_title(
-            f"Trajectories of OU Process with $\\sigma = ${_sigma}, $\\theta = ${_theta}",
+            f"Trajectories of OU Process with $\\sigma = ${sigma_comp}, $\\theta = ${theta_comp}",
             fontsize=15,
         )
         plot_trajectories_1d(_x0, ou_simulator, _ts, ax1, show_hist=False)
 
     # Bottom row: distribution
     _n_traj = 500
-    for _idx, (_theta, _sigma) in enumerate(thetas_and_sigmas):
-        ou_process = OrnsteinUhlenbeckProcess(_theta, _sigma)
+    for idx_comp, (theta_comp, sigma_comp) in enumerate(thetas_and_sigmas):
+        ou_process = OrnsteinUhlenbeckProcess(theta_comp, sigma_comp)
         ou_simulator = EulerMaruyamaSimulator(sde=ou_process)
         _x0 = (
             torch.linspace(-10.0, 10.0, _n_traj).view(-1, 1).to(device)
         )  # Initial values - let's start at zero
         _ts = torch.linspace(0.0, simulation_time, 1000).to(device)  # simulation timesteps
 
-        ax1 = axes[1, _idx]
+        ax1 = axes[1, idx_comp]
         ax1.set_title(
-            f"Trajectories of OU Process with $\\sigma = ${_sigma}, $\\theta = ${_theta}",
+            f"Trajectories of OU Process with $\\sigma = ${sigma_comp}, $\\theta = ${theta_comp}",
             fontsize=15,
         )
         ax1 = plot_trajectories_1d(
@@ -168,6 +169,34 @@ def _(
         plot_every=334,
         bins=200,
         scale=15,
+    )
+
+    return (target,)
+
+
+@app.cell
+def _(
+    EulerMaruyamaSimulator,
+    Gaussian,
+    GaussianMixture,
+    LangevinSDE,
+    animate_dynamics,
+    device,
+    target,
+    torch,
+):
+    GaussianMixture.random_2D(nmodes=5, std=0.75, scale=15.0, seed=3.0).to(device)
+    langevin_sde_anim = LangevinSDE(sigma=0.6, density=target)
+    langevin_simulator_anim = EulerMaruyamaSimulator(sde=langevin_sde_anim)
+    animate_dynamics(
+        num_samples=1000,
+        source_distribution=Gaussian(mean=torch.zeros(2), cov=20 * torch.eye(2)).to(device),
+        simulator=langevin_simulator_anim,
+        density=target,
+        timesteps=torch.linspace(0, 5.0, 1000).to(device),
+        bins=200,
+        scale=15,
+        animate_every=100,
     )
 
     return
