@@ -15,83 +15,81 @@ from .probability import Sampleable
 class ConditionalProbabilityPath(nn.Module, ABC):
     """Abstract base class for conditional probability paths"""
 
-    def __init__(self, p_simple: Sampleable, p_data: Sampleable) -> None:
+    def __init__(self, p0: Sampleable, p1: Sampleable) -> None:
         super().__init__()
-        self.p_simple = p_simple
-        self.p_data = p_data
+        self.p0 = p0
+        self.p1 = p1
 
     @abstractmethod
     def sample_conditioning_variable(self, num_samples: int) -> Tensor:
         """
-        Samples the conditioning variable $z ~ p_data(z)$.
+        Samples the conditioning variable x1 ~ p1(x).
 
         Args:
             - num_samples: number of samples
 
         Returns:
-            - z: samples from p(z), (num_samples, dim)
+            - x1: samples from p1(x), (num_samples, dim)
         """
         pass
 
     @abstractmethod
-    def sample_conditional_path(self, z: Tensor, t: Tensor) -> Tensor:
+    def sample_conditional_path(self, x1: Tensor, t: Tensor) -> Tensor:
         """
-        Samples from the conditional distribution p_t(x|z)
+        Samples from the conditional distribution p_t(x|x1)
 
         Args:
-            - z: conditioning variable (num_samples, dim)
+            - x1: conditioning variable (num_samples, dim)
             - t: time (num_samples, 1)
 
         Returns:
-            - x: samples from p_t(x|z), (num_samples, dims)
+            - xt: samples from p_t(x|x1), (num_samples, dims)
         """
         pass
 
     @abstractmethod
-    def conditional_vector_field(self, x: Tensor, z: Tensor, t: Tensor) -> Tensor:
+    def conditional_vector_field(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
         """
-        Evaluates the conditional vector field u_t(x|z)
+        Evaluates the conditional vector field u_t(x|x1)
 
         Args:
-            - x: position variable (num_samples, dims)
-            - z: conditioning variable (num_samples, dim)
+            - xt: position variable (num_samples, dims)
+            - x1: conditioning variable (num_samples, dim)
             - t: time (num_samples, 1)
 
         Returns:
-            - conditional_vector_fieldl: conditional vector field (num_samples, dimm)
+            - conditional_vector_field: conditional vector field (num_samples, dims)
         """
 
     @abstractmethod
-    def conditional_score(self, x: Tensor, z: Tensor, t: Tensor) -> Tensor:
+    def conditional_score(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
         """
-        Evaluates the conditional score of p_t(x|z)
+        Evaluates the conditional score of p_t(x|x1)
 
         Args:
-            - x: position variable (num_samples, dims)
-            - z: conditioning variable (num_samples, dims)
+            - xt: position variable (num_samples, dims)
+            - x1: conditioning variable (num_samples, dims)
             - t: time (num_samples, 1)
 
         Returns:
-            - conditional_score: conditional score $\\grad_{x} \\log(p_t(x|z))$. (num_samples, dim)
+            - conditional_score: conditional score $\\grad_{x} \\log(p_t(x|x1))$. (num_samples, dim)
         """
         pass
 
     def sample_marginal_path(self, t: Tensor) -> Tensor:
         """
-        Samples from the marginal distribution p_t(x) = p_t(x|z) p(z)
+        Samples from the marginal distribution p_t(x) = ∫ p_t(x|x1) p1(x1) dx1
 
         Args:
             - t: time (num_samples, 1)
 
         Returns:
-            - x: samples from p_t(x) (num_samples, dim)
+            - xt: samples from p_t(x) (num_samples, dim)
         """
         num_samples = t.shape[0]
-        # z ~ p(z)
-        z = self.sample_conditioning_variable(num_samples)
-        # x ~ p_t(x|z)
-        x = self.sample_conditional_path(z, t)
-        return x
+        x1 = self.sample_conditioning_variable(num_samples)
+        xt = self.sample_conditional_path(x1, t)
+        return xt
 
     @staticmethod
     def oob_check(t: Tensor) -> None:
@@ -155,11 +153,11 @@ class Alpha(ABC):
 # a_t and b_t satisfy a_1=b_0=1 and a_0=b_1=0 and have time derivatives
 class Beta(ABC):
     def __init__(self):
-        # Verify a_0=0
+        # Verify b_0=1
         assert torch.allclose(self(torch.zeros(1, 1)), torch.ones(1, 1)), (
             "Beta at time 0 is not 1 as required."
         )
-        # Verify a_1=1
+        # Verify b_1=0
         assert torch.allclose(self(torch.ones(1, 1)), torch.zeros(1, 1)), (
             "Beta at time 1 is not 0 as required."
         )

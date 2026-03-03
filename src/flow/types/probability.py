@@ -10,7 +10,7 @@ from torch import Tensor
 
 class Density(ABC):
     """
-    Distribution with tractable densitty.
+    Distribution with tractable density.
     """
 
     @abstractmethod
@@ -58,7 +58,7 @@ class Sampleable(ABC):
     @abstractmethod
     def sample(self, num_samples: int) -> Tensor:
         """
-        Returns a sample of z.
+        Returns samples from the distribution.
 
         Args:
             - num_samples: number of samples

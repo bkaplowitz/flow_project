@@ -45,8 +45,8 @@ def _(Gaussian, GaussianMixture, device, imshow_density, plt):
         "target_scale": 10.0,
         "target_std": 1.0,
     }
-    p_simple = Gaussian.isotropic(dim=2, std=1.0).to(device)
-    p_data = GaussianMixture.symmetric_2D(
+    p0 = Gaussian.isotropic(dim=2, std=1.0).to(device)
+    p1 = GaussianMixture.symmetric_2D(
         nmodes=5, std=PARAMS["target_std"], scale=PARAMS["target_scale"]
     ).to(device)
 
@@ -57,11 +57,11 @@ def _(Gaussian, GaussianMixture, device, imshow_density, plt):
     x_bounds_gs = [-scale, scale]
     y_bounds_gs = [-scale, scale]
 
-    axes_gs[0].set_title("Heatmap of p_simple")
+    axes_gs[0].set_title("Heatmap of p0")
     axes_gs[0].set_xticks([])
     axes_gs[0].set_yticks([])
     imshow_density(
-        density=p_simple,
+        density=p0,
         x_bounds=x_bounds_gs,
         y_bounds=y_bounds_gs,
         bins=bins,
@@ -71,11 +71,11 @@ def _(Gaussian, GaussianMixture, device, imshow_density, plt):
         cmap=plt.get_cmap("Reds"),
     )
 
-    axes_gs[1].set_title("Heatmap of p_data")
+    axes_gs[1].set_title("Heatmap of p1")
     axes_gs[1].set_xticks([])
     axes_gs[1].set_yticks([])
     imshow_density(
-        density=p_data,
+        density=p1,
         x_bounds=x_bounds_gs,
         y_bounds=y_bounds_gs,
         bins=bins,
@@ -85,11 +85,11 @@ def _(Gaussian, GaussianMixture, device, imshow_density, plt):
         cmap=plt.get_cmap("Blues"),
     )
 
-    axes_gs[2].set_title("Heatmap of p_simple and p_data")
+    axes_gs[2].set_title("Heatmap of p0 and p1")
     axes_gs[2].set_xticks([])
     axes_gs[2].set_yticks([])
     imshow_density(
-        density=p_simple,
+        density=p0,
         x_bounds=x_bounds_gs,
         y_bounds=y_bounds_gs,
         bins=bins,
@@ -98,7 +98,7 @@ def _(Gaussian, GaussianMixture, device, imshow_density, plt):
         cmap=plt.get_cmap("Reds"),
     )
     imshow_density(
-        density=p_data,
+        density=p1,
         x_bounds=x_bounds_gs,
         y_bounds=y_bounds_gs,
         bins=bins,
@@ -108,7 +108,7 @@ def _(Gaussian, GaussianMixture, device, imshow_density, plt):
     )
     plt.show()
 
-    return p_data, p_simple
+    return p1, p0
 
 
 @app.cell
@@ -119,8 +119,8 @@ def _(
     SquareRootBeta,
     device,
     imshow_density,
-    p_data,
-    p_simple,
+    p1,
+    p0,
     plt,
     torch,
 ):
@@ -130,7 +130,7 @@ def _(
         bins = 200
         # Construct conditional probability path
         path = GaussianConditionalProbabilityPath(
-            p_data=GaussianMixture.symmetric_2D(
+            p1=GaussianMixture.symmetric_2D(  # target distribution
                 nmodes=5, std=PARAMS["target_std"], scale=PARAMS["target_scale"]
             ).to(device),
             alpha=LinearAlpha(),
@@ -148,7 +148,7 @@ def _(
 
         # Plot source and target
         imshow_density(
-            density=p_simple,
+            density=p0,
             x_bounds=x_bounds,
             y_bounds=y_bounds,
             bins=bins,
@@ -157,7 +157,7 @@ def _(
             cmap=plt.get_cmap("Reds"),
         )
         imshow_density(
-            density=p_data,
+            density=p1,
             x_bounds=x_bounds,
             y_bounds=y_bounds,
             bins=bins,
@@ -166,22 +166,21 @@ def _(
             cmap=plt.get_cmap("Blues"),
         )
 
-        # Sample conditioning variable z
-        # Single point for z sampled from p_data.
-        z = path.sample_conditioning_variable(1)  # (1,2)
+        # Sample conditioning variable x1 ~ p1 (a single data point)
+        x1 = path.sample_conditioning_variable(1)  # (1,2)
         ts = torch.linspace(0.0, 1.0, 7).to(device)
 
-        # Plot z
-        plt.scatter(z[:, 0].cpu(), z[:, 1].cpu(), marker="*", color="red", s=75, label="z")
+        # Plot x1
+        plt.scatter(x1[:, 0].cpu(), x1[:, 1].cpu(), marker="*", color="red", s=75, label="x1")
         plt.xticks([])
         plt.yticks([])
 
         # Plot conditional probability path at each intermediate t
         num_samples = 1000
         for t in ts:
-            zz = z.expand(num_samples, 2)
+            x1_expanded = x1.expand(num_samples, 2)
             tt = t.unsqueeze(0).expand(num_samples, 1)  # (samples, 1)
-            samples = path.sample_conditional_path(zz, tt)  # (samples, 2)
+            samples = path.sample_conditional_path(x1_expanded, tt)  # (samples, 2)
             plt.scatter(
                 samples[:, 0].cpu(), samples[:, 1].cpu(), alpha=0.25, s=8, label=f"t={t.item():.1f}"
             )

@@ -193,7 +193,7 @@ def scatter_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None
 
 
 def kdeplot_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
-    assert sampleable.dims == 2
+    assert sampleable.dim == 2
     ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)
     sns.kdeplot(x=samples[:, 0].cpu(), y=samples[:, 1].cpu(), ax=ax, **kwargs)
