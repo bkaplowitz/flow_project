@@ -10,6 +10,11 @@ if TYPE_CHECKING:
 
 
 class ODE(ABC):
+    """
+
+    Represents an ODE with associated `drift_coef` method.
+    """
+
     @abstractmethod
     def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
         """drift coefficient of associated ODE
@@ -24,6 +29,10 @@ class ODE(ABC):
 
 
 class SDE(ABC):
+    """
+    Represents a SDE with associated `drift_coef` and `diffusion_coef` methods.
+    """
+
     @abstractmethod
     def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
         """drift coefficient of associated SDE.

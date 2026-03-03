@@ -25,8 +25,12 @@ class Gaussian(nn.Module, Sampleable, Density):
         self.register_buffer("cov", cov)
 
     @property
-    def distribution(self):
-        return D.MultivariateNormal(self.mean, self.cov, validate_args=False)
+    def dim(self) -> int:
+        return self.mean.shape[0]
+
+    @property
+    def distribution(self) -> D.MultivariateNormal:
+        return D.MultivariateNormal(loc=self.mean, covariance_matrix=self.cov, validate_args=False)
 
     def sample(self, num_samples: int) -> Tensor:
         return self.distribution.sample((num_samples,))
@@ -58,8 +62,8 @@ class GaussianMixture(nn.Module, Sampleable, Density):
     ):
         """
         Args:
-            - means: means of distribution, shape (n_modes, 2)
-            - covs : variances of distributions, shape (n_modes, 2, 2)
+            - means: means of distribution, shape (n_modes, dim (2))
+            - covs : variances of distributions, shape (n_modes, dim (2), dim (2))
             - weights: weighting between distributions (n_modes,1)
         """
         super().__init__()

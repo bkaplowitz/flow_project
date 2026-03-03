@@ -23,12 +23,13 @@ class ConditionalProbabilityPath(nn.Module, ABC):
     @abstractmethod
     def sample_conditioning_variable(self, num_samples: int) -> Tensor:
         """
-        Samples the conditioning variable z
+        Samples the latent variable z.
 
         Args:
-            - num_samples: the number of samples
+            - num_samples: number of samples
+
         Returns:
-            -  z: samples from p(z), (num_samples, dim)
+            - z: samples from p(z), (num_samples, dim)
         """
         pass
 
@@ -44,6 +45,7 @@ class ConditionalProbabilityPath(nn.Module, ABC):
         Returns:
             - x: samples from p_t(x|z), (num_samples, dims)
         """
+        pass
 
     @abstractmethod
     def conditional_vector_field(self, x: Tensor, z: Tensor, t: Tensor) -> Tensor:
@@ -77,10 +79,12 @@ class ConditionalProbabilityPath(nn.Module, ABC):
     def sample_marginal_path(self, t: Tensor) -> Tensor:
         """
         Samples from the marginal distribution p_t(x) = p_t(x|z) p(z)
+
         Args:
             - t: time (num_samples, 1)
+
         Returns:
-            - x samples from p_t(x), (num_samples, dim)
+            - x: samples from p_t(x) (num_samples, dim)
         """
         num_samples = t.shape[0]
         # z ~ p(z)
@@ -88,6 +92,24 @@ class ConditionalProbabilityPath(nn.Module, ABC):
         # x ~ p_t(x|z)
         x = self.sample_conditional_path(z, t)
         return x
+
+    @staticmethod
+    def oob_check(t: Tensor) -> None:
+        """
+        Helper function to check t is in [0,1).
+
+        Args:
+            - t: Tensor to check if strictly in [0,1)
+        """
+        t_below_zero = (t < torch.zeros_like(t)).any()
+        t_above_one = (t >= torch.ones_like(t)).any()
+        if t_below_zero or t_above_one:
+            t_oob = "only defined for t in [0,1)."
+            if t_above_one:
+                t_oob += f"Found t max: {t.max()}>=1."
+            if t_below_zero:
+                t_oob += f"Found t min: {t.min()}< 0."
+            raise ValueError(t_oob)
 
 
 # a_t and b_t satisfy a_1=b_0=1 and a_0=b_1=0 and have time derivatives
@@ -121,7 +143,7 @@ class Alpha(ABC):
             - t: time (num_samples ,1 )
 
         Returns:
-            - d / dt alpha_t (num_samples, 1)
+            - dadt: derivative of alpha w.r.t. t (num_samples, 1)
         """
         with torch.enable_grad():
             t = t.detach().requires_grad_(True)
@@ -146,6 +168,7 @@ class Beta(ABC):
     def __call__(self, t: Tensor) -> Tensor:
         """
         Evaluates beta_t. Should satisfy self(0.0)=1.0, self(1.0) = 0.0
+
         Args:
             - t: time (num_samples, 1)
 
@@ -157,11 +180,12 @@ class Beta(ABC):
     def dt(self, t: Tensor) -> Tensor:
         """
         Evaluates d/dt beta_t
+
         Args:
-            - t: time (num_samples ,1 )
+            - t: time (num_samples, 1)
 
         Returns:
-            - d / dt beta_t (num_samples, 1)
+            - dbdt: derivative of beta_t w.r.t. t (num_samples, 1)
         """
         with torch.enable_grad():
             t = t.detach().requires_grad_(True)

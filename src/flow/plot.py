@@ -3,6 +3,7 @@ Plotting helpers.
 """
 
 import os
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -26,6 +27,37 @@ device = torch.device(
 )
 
 
+def _get_ax(ax: Axes | None = None) -> Axes:
+    """
+    Helper function to check if ax is None and return gca, else just returns passed ax.
+
+    Args:
+        - ax: possible axes or None, in which case return default of gca.
+    """
+    if ax is None:
+        return plt.gca()
+    return ax
+
+
+def _get_scale_or_bounds(
+    bins: int,
+    scale: float | None = None,
+    x_bounds: Sequence[float] | None = None,
+    y_bounds: Sequence[float] | None = None,
+) -> tuple[torch.Tensor[float], torch.Tensor[float], list[float]]:
+    if scale is not None:
+        x = torch.linspace(-scale, scale, bins).to(device)
+        y = torch.linspace(-scale, scale, bins).to(device)
+        extent = [-scale, scale, -scale, scale]
+    elif x_bounds is not None and y_bounds is not None:
+        x = torch.linspace(*x_bounds, bins).to(device)
+        y = torch.linspace(*y_bounds, bins).to(device)
+        extent = x_bounds + y_bounds
+    else:
+        raise ValueError("Either scale or x_bounds and y_bounds have to be defined.")
+    return x, y, extent
+
+
 def plot_trajectories_1d(
     x0: torch.Tensor,
     simulator: Simulator,
@@ -45,8 +77,7 @@ def plot_trajectories_1d(
         decouple_hist_axis: if True, don't share y-axis between
             trajectories and histogram
     """
-    if ax is None:
-        ax = plt.gca()
+    ax = _get_ax(ax)
     # (num_trajectories, num_timesteps, ...)
     trajectories = simulator.simulate_with_trajectory(x0, ts)
 
@@ -150,47 +181,56 @@ def hist2d_samples(
 
 # Several plotting utility functions
 def hist2d_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
-    if ax is None:
-        ax = plt.gca()
+    ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)  # (ns, 2)
     ax.hist2d(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
 
 
 def scatter_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
-    if ax is None:
-        ax = plt.gca()
+    ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)  # (ns, 2)
     ax.scatter(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
 
 
 def kdeplot_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
     assert sampleable.dims == 2
-    if ax is None:
-        ax = plt.gca()
+    ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)
     sns.kdeplot(x=samples[:, 0].cpu(), y=samples[:, 1].cpu(), ax=ax, **kwargs)
 
 
-def imshow_density(density: Density, bins: int, scale: float, ax: Axes | None = None, **kwargs):
-    if ax is None:
-        ax = plt.gca()
-    x = torch.linspace(-scale, scale, bins).to(device)
-    y = torch.linspace(-scale, scale, bins).to(device)
+def imshow_density(
+    density: Density,
+    bins: int,
+    scale: float | None = None,
+    x_bounds: Sequence[float] | None = None,
+    y_bounds: Sequence[float] | None = None,
+    ax: Axes | None = None,
+    **kwargs,
+):
+    ax = _get_ax(ax)
+    x, y, extent = _get_scale_or_bounds(bins, scale=scale, x_bounds=x_bounds, y_bounds=y_bounds)
     X, Y = torch.meshgrid(x, y)
     xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
     density = density.log_density(xy).reshape(bins, bins).T
-    ax.imshow(density.cpu(), extent=[-scale, scale, -scale, scale], origin="lower", **kwargs)
+    ax.imshow(density.cpu(), extent=extent, origin="lower", **kwargs)
 
 
-def contour_density(density: Density, bins: int, scale: float, ax: Axes | None = None, **kwargs):
-    if ax is None:
-        ax = plt.gca()
-    x = torch.linspace(-scale, scale, bins).to(device)
-    y = torch.linspace(-scale, scale, bins).to(device)
+def contour_density(
+    density: Density,
+    bins: int,
+    scale: float | None = None,
+    x_bounds: Sequence[float] | None = None,
+    y_bounds: Sequence[float] | None = None,
+    ax: Axes | None = None,
+    **kwargs,
+):
+    ax = _get_ax(ax)
+    x, y, extent = _get_scale_or_bounds(bins, scale=scale, x_bounds=x_bounds, y_bounds=y_bounds)
     X, Y = torch.meshgrid(x, y)
     xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
     density = density.log_density(xy).reshape(bins, bins).T
-    ax.contour(density.cpu(), extent=[-scale, scale, -scale, scale], origin="lower", **kwargs)
+    ax.contour(density.cpu(), extent=extent, origin="lower", **kwargs)
 
 
 def plot_2d_densities(
@@ -310,6 +350,7 @@ def animate_dynamics(
 ) -> None:
     """
     Plot the evolution of samples from source under simulation
+
     Args:
         - num_samples: number of samples to simulate
         - source_distribution: initial distribution for samples

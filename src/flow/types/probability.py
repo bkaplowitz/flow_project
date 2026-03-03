@@ -46,6 +46,15 @@ class Sampleable(ABC):
     Distribution that can be sampled from.
     """
 
+    @property
+    @abstractmethod
+    def dim(self) -> int:
+        """
+        Returns:
+            - Dimensionality of the distribution
+        """
+        pass
+
     @abstractmethod
     def sample(self, num_samples: int) -> Tensor:
         """
@@ -57,3 +66,4 @@ class Sampleable(ABC):
         Returns:
             - samples: shape (num_samples, dim)
         """
+        pass

@@ -52,14 +52,14 @@ def _(
     brownian_motion = BrownianMotion(sigma_brown)
     simulator = EulerMaruyamaSimulator(sde=brownian_motion)
     x0 = torch.zeros(n_traj_brown, 1).to(device)  # Initial values - let's start at zero
-    ts = torch.linspace(0.0, 5.0, 500).to(device)  # simulation timesteps
+    ts0 = torch.linspace(0.0, 5.0, 500).to(device)  # simulation timesteps
 
     plt.figure(figsize=(9, 6))
     ax = plt.gca()
     ax.set_title(r"Trajectories of Brownian Motion with $\sigma=$" + str(sigma_brown), fontsize=18)
     ax.set_xlabel(r"time ($t$)", fontsize=18)
     ax.set_ylabel(r"$x_t$", fontsize=18)
-    plot_trajectories_1d(x0, simulator, ts, ax, show_hist=True)
+    plot_trajectories_1d(x0, simulator, ts0, ax, show_hist=True)
     plt.show()
 
     return (plt,)
