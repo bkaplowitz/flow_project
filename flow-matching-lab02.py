@@ -108,7 +108,7 @@ def _(Gaussian, GaussianMixture, device, imshow_density, plt):
     )
     plt.show()
 
-    return p1, p0
+    return p0, p1
 
 
 @app.cell
@@ -119,8 +119,8 @@ def _(
     SquareRootBeta,
     device,
     imshow_density,
-    p1,
     p0,
+    p1,
     plt,
     torch,
 ):
