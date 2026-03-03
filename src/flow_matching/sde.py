@@ -1,18 +1,17 @@
-"""
-Implementation of specific SDEs.
-"""
+"""Implementation of specific SDEs."""
 
 import torch
 from torch import Tensor
 
-from flow.types.ode import SDE
-from flow.types.probability import Density
+from flow_matching.base.dynamics import SDE
+from flow_matching.base.probability import Density
 
 
 class BrownianMotion(SDE):
-    """A Brownian motion proces, defined by $dX_t = \sigma dW_t$.
-    - Drift: $u_t(X_t)=0$
-    - Diffusion $\sigma_t(X_t) = \sigma$.
+    r"""A Brownian motion process, defined by $dX_t = \sigma dW_t$.
+
+    Drift: $u_t(X_t)=0$.
+    Diffusion: $\sigma_t(X_t) = \sigma$.
     """
 
     def __init__(self, sigma: float) -> None:
@@ -26,10 +25,10 @@ class BrownianMotion(SDE):
 
 
 class OrnsteinUhlenbeckProcess(SDE):
-    """
-    An Ornstein Uhlenbeck process defined by $dX_t = -theta X_t + \sigma dW_t$.
-    - Drift $u_t(X_t) = -theta X_t$.
-    - Diffusion $\sigma_t(X_t) = \sigma$.
+    r"""An Ornstein Uhlenbeck process defined by $dX_t = -\theta X_t + \sigma dW_t$.
+
+    Drift: $u_t(X_t) = -\theta X_t$.
+    Diffusion: $\sigma_t(X_t) = \sigma$.
     """
 
     def __init__(self, theta: float, sigma: float) -> Tensor:
@@ -44,11 +43,12 @@ class OrnsteinUhlenbeckProcess(SDE):
 
 
 class LangevinSDE(SDE):
-    """
-    An (overdamped) Langevin SDE defined by $dX_t = 1/2 \sigma^2 \grad \log p(X_t)dt + \sigma dW_t$.
+    r"""Overdamped Langevin SDE.
 
-    - Drift $u_t(X_t) = 1/2 \sigma^2 \grad \log p(X_t)$ for some target $p$ density.
-    - Diffusion $\sigma_t(X_t) = \sigma$.
+    Defined by $dX_t = \frac{1}{2} \sigma^2 \nabla \log p(X_t)dt + \sigma dW_t$.
+
+    Drift $u_t(X_t) = 1/2 \sigma^2 \grad \log p(X_t)$ for some target $p$ density.
+    Diffusion $\sigma_t(X_t) = \sigma$.
     """
 
     def __init__(self, sigma: float, density: Density) -> Tensor:

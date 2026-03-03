@@ -1,6 +1,6 @@
-"""
-Conditional probability path abstract object
-used for recovering a conditional vector field
+"""Conditional probability path abstract object.
+
+Used for recovering a conditional vector field
 and other primitives for diffusion models.
 """
 
@@ -13,7 +13,7 @@ from .probability import Sampleable
 
 
 class ConditionalProbabilityPath(nn.Module, ABC):
-    """Abstract base class for conditional probability paths"""
+    """Abstract base class for conditional probability paths."""
 
     def __init__(self, p0: Sampleable, p1: Sampleable) -> None:
         super().__init__()
@@ -22,69 +22,64 @@ class ConditionalProbabilityPath(nn.Module, ABC):
 
     @abstractmethod
     def sample_conditioning_variable(self, num_samples: int) -> Tensor:
-        """
-        Samples the conditioning variable x1 ~ p1(x).
+        """Samples the conditioning variable x1 ~ p1(x).
 
         Args:
-            - num_samples: number of samples
+            num_samples: number of samples
 
         Returns:
-            - x1: samples from p1(x), (num_samples, dim)
+            x1: samples from p1(x), (num_samples, dim)
         """
         pass
 
     @abstractmethod
     def sample_conditional_path(self, x1: Tensor, t: Tensor) -> Tensor:
-        """
-        Samples from the conditional distribution p_t(x|x1)
+        """Samples from the conditional distribution p_t(x|x1).
 
         Args:
-            - x1: conditioning variable (num_samples, dim)
-            - t: time (num_samples, 1)
+            x1: conditioning/target variable, data (num_samples, dim)
+            t: time (num_samples, 1)
 
         Returns:
-            - xt: samples from p_t(x|x1), (num_samples, dims)
+            xt: samples from p_t(x|x1), (num_samples, dims)
         """
         pass
 
     @abstractmethod
     def conditional_vector_field(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
-        """
-        Evaluates the conditional vector field u_t(x|x1)
+        """Evaluates the conditional vector field u_t(x|x1).
 
         Args:
-            - xt: position variable (num_samples, dims)
-            - x1: conditioning variable (num_samples, dim)
-            - t: time (num_samples, 1)
+            xt: position variable (num_samples, dims)
+            x1: conditioning variable (num_samples, dim)
+            t: time (num_samples, 1)
 
         Returns:
-            - conditional_vector_field: conditional vector field (num_samples, dims)
+            conditional_vector_field: conditional vector field (num_samples, dims)
         """
 
     @abstractmethod
     def conditional_score(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
-        """
-        Evaluates the conditional score of p_t(x|x1)
+        r"""Evaluates the conditional score of p_t(x|x1).
 
         Args:
-            - xt: position variable (num_samples, dims)
-            - x1: conditioning variable (num_samples, dims)
-            - t: time (num_samples, 1)
+            xt: position variable (num_samples, dims)
+            x1: conditioning variable (num_samples, dims)
+            t: time (num_samples, 1)
 
         Returns:
-            - conditional_score: conditional score $\\grad_{x} \\log(p_t(x|x1))$. (num_samples, dim)
+            conditional_score: conditional score $\\grad_{x} \\log(p_t(x|x1))$. (num_samples, dim)
         """
         pass
 
     def sample_marginal_path(self, t: Tensor) -> Tensor:
-        """
-        Samples from the marginal distribution p_t(x) = ∫ p_t(x|x1) p1(x1) dx1
+        """Samples from the marginal distribution p_t(x) = ∫ p_t(x|x1) p1(x1) dx1.
 
         Args:
-            - t: time (num_samples, 1)
+            t: time (num_samples, 1)
 
         Returns:
-            - xt: samples from p_t(x) (num_samples, dim)
+            xt: samples from p_t(x) (num_samples, dim)
         """
         num_samples = t.shape[0]
         x1 = self.sample_conditioning_variable(num_samples)
@@ -93,11 +88,10 @@ class ConditionalProbabilityPath(nn.Module, ABC):
 
     @staticmethod
     def oob_check(t: Tensor) -> None:
-        """
-        Helper function to check t is in [0,1).
+        """Helper function to check t is in [0,1).
 
         Args:
-            - t: Tensor to check if strictly in [0,1)
+            t: Tensor to check if strictly in [0,1)
         """
         t_below_zero = (t < torch.zeros_like(t)).any()
         t_above_one = (t >= torch.ones_like(t)).any()
@@ -124,24 +118,25 @@ class Alpha(ABC):
 
     @abstractmethod
     def __call__(self, t: Tensor) -> Tensor:
-        """
-        Evaluates alpha_t. Should satisfy self(0.0)=0.0, self(1.0) = 1.0
+        """Evaluates alpha_t. Should satisfy self(0.0)=0.0, self(1.0) = 1.0.
+
         Args:
-            - t: time (num_samples, 1)
+            t: time (num_samples, 1).
 
         Returns:
-            - alpha_t (num_samples, 1)
+            alpha_t (num_samples, 1)
         """
         pass
 
     def dt(self, t: Tensor) -> Tensor:
-        """
-        Evaluates d/dt alpha_t
+        """Evaluates d/dt alpha_t.
+
         Args:
-            - t: time (num_samples ,1 )
+            t: time (num_samples, 1).
+
 
         Returns:
-            - dadt: derivative of alpha w.r.t. t (num_samples, 1)
+            dadt: derivative of alpha w.r.t. t (num_samples, 1)
         """
         with torch.enable_grad():
             t = t.detach().requires_grad_(True)
@@ -164,26 +159,24 @@ class Beta(ABC):
 
     @abstractmethod
     def __call__(self, t: Tensor) -> Tensor:
-        """
-        Evaluates beta_t. Should satisfy self(0.0)=1.0, self(1.0) = 0.0
+        """Evaluates beta_t. Should satisfy self(0.0)=1.0, self(1.0) = 0.0.
 
         Args:
-            - t: time (num_samples, 1)
+            t: time (num_samples, 1)
 
         Returns:
-            - beta_t (num_samples, 1)
+            beta_t (num_samples, 1)
         """
         pass
 
     def dt(self, t: Tensor) -> Tensor:
-        """
-        Evaluates d/dt beta_t
+        """Evaluates d/dt beta_t.
 
         Args:
-            - t: time (num_samples, 1)
+            t: time (num_samples, 1)
 
         Returns:
-            - dbdt: derivative of beta_t w.r.t. t (num_samples, 1)
+            dbdt: derivative of beta_t w.r.t. t (num_samples, 1)
         """
         with torch.enable_grad():
             t = t.detach().requires_grad_(True)

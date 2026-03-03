@@ -1,6 +1,4 @@
-"""
-Simulators/integration methods for SDE/ODE processes.
-"""
+"""Simulators/integration methods for SDE/ODE processes."""
 
 from collections.abc import Callable
 
@@ -9,12 +7,12 @@ from torch import Tensor
 from tqdm import tqdm
 
 # from tqdm.gui import tqdm_gui
-from flow.types.ode import ODE, SDE
-from flow.types.simulator import Simulator
+from flow_matching.base.dynamics import ODE, SDE
+from flow_matching.base.simulator import Simulator
 
 
 class EulerSimulator(Simulator):
-    """Euler method for ODE simulation. Integrades ODE"""
+    """Euler method for ODE simulation. Integrades ODE."""
 
     def __init__(self, ode: ODE):
         self.ode = ode
@@ -24,7 +22,7 @@ class EulerSimulator(Simulator):
 
 
 class EulerMaruyamaSimulator(Simulator):
-    """Euler-Maruyama method for SDE Simulation. Integrates SDE"""
+    """Euler-Maruyama method for SDE Simulation. Integrates SDE."""
 
     def __init__(self, sde: SDE):
         self.sde = sde
@@ -39,9 +37,7 @@ class EulerMaruyamaSimulator(Simulator):
 
 
 # Alternative, functional.
-def simulate(
-    step: Callable[[Tensor, Tensor, Tensor], Tensor], x0: Tensor, ts: Tensor
-) -> Tensor:
+def simulate(step: Callable[[Tensor, Tensor, Tensor], Tensor], x0: Tensor, ts: Tensor) -> Tensor:
     x = x0
     xs = [x.clone()]
     for t_idx in tqdm(range(len(ts) - 1)):

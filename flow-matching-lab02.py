@@ -9,9 +9,9 @@ def _():
     import matplotlib.pyplot as plt
     import torch
 
-    from flow.diffusion import GaussianConditionalProbabilityPath, LinearAlpha, SquareRootBeta
-    from flow.distributions import Gaussian, GaussianMixture
-    from flow.plot import imshow_density
+    from flow_matching.distributions import Gaussian, GaussianMixture
+    from flow_matching.paths import GaussianConditionalProbabilityPath, LinearAlpha, SquareRootBeta
+    from flow_matching.plot import imshow_density
 
     return (
         Gaussian,

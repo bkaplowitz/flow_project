@@ -1,19 +1,15 @@
-"""
-Implement common forms of probability paths
-"""
+"""Implement common forms of probability paths."""
 
 import torch
 from torch import Tensor
 
-from flow.distributions import Gaussian
-from flow.types.diffusion import Alpha, Beta, ConditionalProbabilityPath
-from flow.types.probability import Sampleable
+from flow_matching.base.paths import Alpha, Beta, ConditionalProbabilityPath
+from flow_matching.base.probability import Sampleable
+from flow_matching.distributions import Gaussian
 
 
 class LinearAlpha(Alpha):
-    """
-    Alpha_t =t
-    """
+    """Alpha_t =t."""
 
     def __call__(self, t: Tensor) -> Tensor:
         return t
@@ -23,9 +19,7 @@ class LinearAlpha(Alpha):
 
 
 class SquareRootBeta(Beta):
-    """
-    Beta_t = \\sqrt{1-t}
-    """
+    r"""Beta_t = \\sqrt{1-t}."""
 
     def __call__(self, t: Tensor) -> Tensor:
         return torch.sqrt(1 - t)
@@ -36,10 +30,7 @@ class SquareRootBeta(Beta):
 
 # Diffusions
 class GaussianConditionalProbabilityPath(ConditionalProbabilityPath):
-    """
-    A gaussian conditional probability path, starting from initial gaussian distribution.
-
-    """
+    """A gaussian conditional probability path, starting from initial gaussian distribution."""
 
     def __init__(self, p1: Sampleable, alpha: Alpha, beta: Beta):
         self.dim = p1.dim
@@ -52,47 +43,46 @@ class GaussianConditionalProbabilityPath(ConditionalProbabilityPath):
         return self.p1.sample(num_samples)  # x1 (num_samples, dim)
 
     def sample_conditional_path(self, x1: Tensor, t: Tensor) -> Tensor:
-        """
-        Sample xt ~ p_t(x|x1) = N(x; alpha_t * x1, beta_t**2 * I_d)
+        """Sample xt ~ p_t(x|x1) = N(x; alpha_t * x1, beta_t**2 * I_d).
 
         Args:
-            - x1: conditioning variable / data sample (num_samples, dims)
-            - t: time (num_samples, 1)
+            x1: conditioning variable / data sample (num_samples, dims)
+            t: time (num_samples, 1)
 
         Returns:
-            - xt: samples from p_t(x|x1) (num_samples, dims)
+            xt: samples from p_t(x|x1) (num_samples, dims)
         """
         # alpha_t * x1 + beta_t * epsilon, where epsilon ~ N(0,I) = p0
         return self.alpha(t) * x1 + self.beta(t) * torch.randn_like(x1)
 
     def conditional_vector_field(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
-        """
-        Evaluate the conditional vector field u_t(x|x1). Given by:
-        u_t(x|x1) = (a'_t - (b'_t / b_t) * a_t) * x1 + (b'_t / b_t) * xt
-        Note: Only defined for t in [0,1)
+        """Evaluate the conditional vector field u_t(x|x1).
+
+        Given by: u_t(x|x1) = (a'_t - (b'_t / b_t) * a_t) * x1 + (b'_t / b_t) * xt.
+        Note: Only defined for t in [0,1).
 
         Args:
-            - xt: position variable (num_samples, dims)
-            - x1: conditioning variable (num_samples, dims)
-            - t: time (num_samples, 1)
+            xt: position variable (num_samples, dims)
+            x1: conditioning variable (num_samples, dims)
+            t: time (num_samples, 1)
 
         Returns:
-            - conditional_vector_field: conditional vector field (num_samples, dims)
+            conditional_vector_field: conditional vector field (num_samples, dims)
         """
         dlogbt = self.beta.dt(t) / self.beta(t)
         return (self.alpha.dt(t) - dlogbt * self.alpha(t)) * x1 + dlogbt * xt
 
     def conditional_score(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
-        """
-        Evaluates the conditional score of p_t(x|x1) = N(alpha_t * x1, beta_t**2 * I_d).
+        """Evaluates the conditional score of p_t(x|x1) = N(alpha_t * x1, beta_t**2 * I_d).
+
         Note: only defined on t in [0,1).
 
         Args:
-            - xt: position variable (num_samples, dims)
-            - x1: conditioning variable (num_samples, dims)
-            - t: time (num_samples, 1)
+            xt: position variable (num_samples, dims)
+            x1: conditioning variable (num_samples, dims)
+            t: time (num_samples, 1)
 
         Returns:
-            - conditional_score: conditional score (num_samples, dims)
+            conditional_score: conditional score (num_samples, dims)
         """
         return (self.alpha(t) * x1 - xt) / (self.beta(t) ** 2)

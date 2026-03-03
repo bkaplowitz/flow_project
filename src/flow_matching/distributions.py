@@ -1,11 +1,11 @@
-"""Specific distributions"""
+"""Specific distributions."""
 
 import numpy as np
 import torch
 import torch.distributions as D
 from torch import Tensor, nn
 
-from flow.types.probability import Density, Sampleable
+from flow_matching.base.probability import Density, Sampleable
 
 
 class Gaussian(nn.Module, Sampleable, Density):
@@ -15,9 +15,11 @@ class Gaussian(nn.Module, Sampleable, Density):
     """
 
     def __init__(self, mean, cov):
-        """
-        mean: shape(2,)
-        cov: shape (2,2)
+        """Initialize Gaussian.
+
+        Args:
+            mean: shape (2,)
+            cov: shape (2, 2)
         """
         super().__init__()
         # static
@@ -40,9 +42,7 @@ class Gaussian(nn.Module, Sampleable, Density):
 
     @classmethod
     def isotropic(cls, dim: int, std: float) -> "Gaussian":
-        """
-        Constructs an isotropic gaussian of dim `dim` and std `std`.
-        """
+        """Constructs an isotropic gaussian of dim `dim` and std `std`."""
         mean = torch.zeros(dim)
         cov = torch.eye(dim) * std**2
         return cls(mean, cov)
@@ -60,11 +60,12 @@ class GaussianMixture(nn.Module, Sampleable, Density):
         covs: Tensor,  # n_modes x data_dim x data_dim
         weights: Tensor,  # n_modes
     ):
-        """
+        """Initialize GaussianMixture.
+
         Args:
-            - means: means of distribution, shape (n_modes, dim (2))
-            - covs : variances of distributions, shape (n_modes, dim (2), dim (2))
-            - weights: weighting between distributions (n_modes,1)
+            means: means of distribution, shape (n_modes, dim (2))
+            covs: variances of distributions, shape (n_modes, dim (2), dim (2))
+            weights: weighting between distributions (n_modes, 1)
         """
         super().__init__()
         self.nmodes = means.shape[0]

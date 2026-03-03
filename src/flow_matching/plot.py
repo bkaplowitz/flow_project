@@ -1,6 +1,4 @@
-"""
-Plotting helpers.
-"""
+"""Plotting helpers."""
 
 import os
 from collections.abc import Sequence
@@ -18,8 +16,8 @@ from matplotlib.colors import Colormap
 if TYPE_CHECKING:
     from matplotlib.axes._axes import Axes
 
-    from flow.types.probability import Density, Sampleable
-    from flow.types.simulator import Simulator
+    from flow_matching.base.probability import Density, Sampleable
+    from flow_matching.base.simulator import Simulator
 
 BLUES_CMAP: Colormap = plt.get_cmap("Blues")
 device = torch.device(
@@ -28,11 +26,10 @@ device = torch.device(
 
 
 def _get_ax(ax: Axes | None = None) -> Axes:
-    """
-    Helper function to check if ax is None and return gca, else just returns passed ax.
+    """Helper function to check if ax is None and return gca, else just returns passed ax.
 
     Args:
-        - ax: possible axes or None, in which case return default of gca.
+        ax: possible axes or None, in which case return default of gca.
     """
     if ax is None:
         return plt.gca()
@@ -66,14 +63,14 @@ def plot_trajectories_1d(
     show_hist: bool = False,
     decouple_hist_axis: bool = False,
 ):
-    """
-    Graphs the trajectories of a one-dimensional SDE with given initial values (x0)
-    and simulation timesteps (ts).
+    """Graphs the trajectories of a 1D SDE with given initial values and timesteps.
+
     Args:
         x0: state at time t, shape (num_trajectories, 1)
         simulator: Simulator object used to simulate
         ts: timesteps to simulate along, shape (num_timesteps,)
         ax: pyplot Axes object to plot on
+        show_hist: if True, show histogram of terminal values
         decouple_hist_axis: if True, don't share y-axis between
             trajectories and histogram
     """
@@ -261,9 +258,7 @@ def plot_2d_densities(
 
 
 def every_nth_index(num_timesteps: int, n: int) -> torch.Tensor:
-    """
-    Compute the indices to record in the trajectory given a record_every parameter
-    """
+    """Compute the indices to record in the trajectory given a record_every parameter."""
     if n == 1:
         return torch.arange(num_timesteps)
     return torch.cat(
@@ -284,18 +279,19 @@ def graph_dynamics(
     bins: int,
     scale: float,
 ):
-    """
-    Plot the evolution of samples from source under the simulation scheme
-    given by simulator (itself a discretization of an ODE or SDE).
+    """Plot the evolution of samples from source under the simulation scheme.
+
+    Uses simulator (itself a discretization of an ODE or SDE).
+
     Args:
-        - num_samples: the number of samples to simulate
-        - source_distribution: distribution from which we draw initial samples at t=0
-        - simulator: the discertized simulation scheme used to simulate the dynamics
-        - density: the target density
-        - timesteps: the timesteps used by the simulator
-        - plot_every: number of timesteps between consecutive plots
-        - bins: number of bins for imshow
-        - scale: scale for imshow
+        num_samples: the number of samples to simulate
+        source_distribution: distribution from which we draw initial samples at t=0
+        simulator: the discertized simulation scheme used to simulate the dynamics
+        density: the target density
+        timesteps: the timesteps used by the simulator
+        plot_every: number of timesteps between consecutive plots
+        bins: number of bins for imshow
+        scale: scale for imshow
     """
     # Simulate
     x0 = source_distribution.sample(num_samples)
@@ -348,19 +344,18 @@ def animate_dynamics(
     scale: float,
     save_path: os.PathLike = "dynamics_animation.mp4",
 ) -> None:
-    """
-    Plot the evolution of samples from source under simulation
+    """Plot the evolution of samples from source under simulation.
 
     Args:
-        - num_samples: number of samples to simulate
-        - source_distribution: initial distribution for samples
-        - simulator: simulates samples by iterating on timesteps
-        - density: target distribution (assumes a density)
-        - timesteps: timesteps to simulate for. Gives discretization for process. Shape nts
-        - animate_every: how frequently to update animation.
-        - bins: histogram bins for kde plot
-        - scale: scaling for kde plot
-        - save_path: Pathlike savepath
+        num_samples: number of samples to simulate
+        source_distribution: initial distribution for samples
+        simulator: simulates samples by iterating on timesteps
+        density: target distribution (assumes a density)
+        timesteps: timesteps to simulate for. Gives discretization for process. Shape nts
+        animate_every: how frequently to update animation.
+        bins: histogram bins for kde plot
+        scale: scaling for kde plot
+        save_path: Pathlike savepath
     """
     # Simulate
     x0 = source_distribution.sample(num_samples)
