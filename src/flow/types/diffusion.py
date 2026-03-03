@@ -23,7 +23,7 @@ class ConditionalProbabilityPath(nn.Module, ABC):
     @abstractmethod
     def sample_conditioning_variable(self, num_samples: int) -> Tensor:
         """
-        Samples the latent variable z.
+        Samples the conditioning variable $z ~ p_data(z)$.
 
         Args:
             - num_samples: number of samples

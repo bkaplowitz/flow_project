@@ -49,19 +49,21 @@ class GaussianConditionalProbabilityPath(ConditionalProbabilityPath):
         self.beta = beta
 
     def sample_conditioning_variable(self, num_samples: int):
-        return self.p_simple.sample(num_samples)  # z (num_samples, dim)
+        return self.p_data.sample(num_samples)  # z (num_samples, dim)
 
     def sample_conditional_path(self, z: Tensor, t: Tensor) -> Tensor:
         """
         sample x ~ p(x|z) = N(x; alpha z, beta**2 I_d)
 
         Args:
-            - z: conditioning variable (num_samples, dims)
+            - z: conditioning variable/data (num_samples, dims)
             - t: time (num_samples, 1)
 
         Returns:
             - x: samples from p_t(x|z) (num_samples, dims)
         """
+
+        # a_t z_{data} + beta_t * epsilon_t, where here epsilon_t ~ N(0,I) = p_simple.
         return self.alpha(t) * z + self.beta(t) * torch.randn_like(z)
 
     def conditional_vector_field(self, x: Tensor, z: Tensor, t: Tensor) -> Tensor:

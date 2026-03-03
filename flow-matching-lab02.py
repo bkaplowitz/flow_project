@@ -167,6 +167,7 @@ def _(
         )
 
         # Sample conditioning variable z
+        # Single point for z sampled from p_data.
         z = path.sample_conditioning_variable(1)  # (1,2)
         ts = torch.linspace(0.0, 1.0, 7).to(device)
 
