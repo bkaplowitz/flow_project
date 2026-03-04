@@ -28,11 +28,11 @@ class EulerMaruyamaSimulator(Simulator):
         self.sde = sde
 
     def step(self, xt: Tensor, t: Tensor, dt: Tensor) -> Tensor:
-        z = torch.randn_like(xt)
+        x0 = torch.randn_like(xt)
         return (
             xt
             + self.sde.drift_coef(xt, t) * dt
-            + self.sde.diffusion_coef(xt, t) * torch.sqrt(dt) * z
+            + self.sde.diffusion_coef(xt, t) * torch.sqrt(dt) * x0
         )
 
 

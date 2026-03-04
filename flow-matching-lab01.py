@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.20.2"
+__generated_with = "0.20.4"
 app = marimo.App()
 
 
@@ -33,6 +33,7 @@ def _(torch):
         if torch.backends.mps.is_available()
         else "cpu"
     )
+
     return (device,)
 
 
@@ -60,6 +61,7 @@ def _(
     ax.set_ylabel(r"$x_t$", fontsize=18)
     plot_trajectories_1d(x0, simulator, ts0, ax, show_hist=True)
     plt.show()
+
     return (plt,)
 
 
@@ -78,6 +80,7 @@ def _(device, plt, torch):
         "Symmetric Mixture": GaussianMixture.symmetric_2D(nmodes=5, std=1.0, scale=8.0).to(device),
     }
     plot_2d_densities(densities, bins=100, scale=15, vmin=-15, cmap=plt.get_cmap("Blues"))
+
     return Gaussian, GaussianMixture
 
 
@@ -137,6 +140,7 @@ def _(
             _x0, ou_simulator, _ts, ax1, show_hist=True, decouple_hist_axis=True
         )
     plt.show()
+
     return
 
 
@@ -166,6 +170,7 @@ def _(
         bins=200,
         scale=15,
     )
+
     return (target,)
 
 
@@ -193,6 +198,7 @@ def _(
         scale=15,
         animate_every=100,
     )
+
     return
 
 

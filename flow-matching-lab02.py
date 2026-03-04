@@ -290,14 +290,17 @@ def _(
         simulator = EulerSimulator(ode)
         x0 = path.p0.sample(num_samples).to(device)  # (num_samples, 2)
         ts = (
-            torch.linspace(0.0, 1.0, num_timesteps).to(device)  # (num_samples/bs,nts, 1 (dims) )
-        )
-        x = simulator.simulate_with_trajectory(x0, ts)  # (bs, nts, dims)
+            torch.linspace(0.0, 1.0, num_timesteps)
+            .view(1, -1, 1)
+            .expand(num_samples, -1, 1)
+            .to(device)
+        )  # (bs, nts, 1)
+        x = simulator.batch_simulate_with_trajectory(x0, ts)  # (bs, nts, dims)
 
         # Extract every nth iteration
         every_n = every_nth_index(num_timesteps, n=num_timesteps // num_marginals)
         x_every_n = x[:, every_n, :]
-        t_every_n = ts[every_n, :]
+        t_every_n = ts[every_n]
         for plot_idx in range(x_every_n.shape[1]):
             t = t_every_n[plot_idx].item()
             ax.scatter(

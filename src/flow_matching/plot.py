@@ -1,7 +1,6 @@
 """Plotting helpers."""
 
-import os
-from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -10,7 +9,7 @@ import seaborn as sns
 import torch
 from celluloid import Camera
 from IPython.display import HTML
-from matplotlib import cm
+from matplotlib import colors
 from matplotlib.colors import Colormap
 
 if TYPE_CHECKING:
@@ -39,13 +38,13 @@ def _get_ax(ax: Axes | None = None) -> Axes:
 def _get_scale_or_bounds(
     bins: int,
     scale: float | None = None,
-    x_bounds: Sequence[float] | None = None,
-    y_bounds: Sequence[float] | None = None,
-) -> tuple[torch.Tensor[float], torch.Tensor[float], list[float]]:
+    x_bounds: tuple[float, float] | None = None,
+    y_bounds: tuple[float, float] | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, tuple[float, float, float, float]]:
     if scale is not None:
         x = torch.linspace(-scale, scale, bins).to(device)
         y = torch.linspace(-scale, scale, bins).to(device)
-        extent = [-scale, scale, -scale, scale]
+        extent = (-scale, scale, -scale, scale)
     elif x_bounds is not None and y_bounds is not None:
         x = torch.linspace(*x_bounds, bins).to(device)
         y = torch.linspace(*y_bounds, bins).to(device)
@@ -131,6 +130,8 @@ def plot_trajectories_1d(
         else:
             hist_ax.tick_params(axis="y", left=False, labelleft=False)
         hist_ax.grid(axis="x", alpha=0.2, linewidth=0.6)
+    else:
+        hist_ax = None
 
     fig = ax.figure
     if fig is not None:
@@ -164,15 +165,16 @@ def hist2d_samples(
     percentile: int = 99,
     **kwargs,
 ):
+    ax = _get_ax(ax)
     H, xedges, yedges = np.histogram2d(
         samples[:, 0], samples[:, 1], bins=bins, range=[[-scale, scale], [-scale, scale]]
     )
     cmax = np.percentile(H, percentile)
     cmin = 0.0
-    norm = cm.colors.Normalize(vmax=cmax, vmin=cmin)
+    norm = colors.Normalize(vmax=cmax, vmin=cmin)
 
     # Plot with imshow
-    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    extent = (xedges[0], xedges[-1], yedges[0], yedges[-1])
     ax.imshow(H.T, extent=extent, origin="lower", norm=norm, **kwargs)
 
 
@@ -193,15 +195,20 @@ def kdeplot_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None
     assert sampleable.dim == 2
     ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)
-    sns.kdeplot(x=samples[:, 0].detach().cpu(), y=samples[:, 1].detach().cpu(), ax=ax, **kwargs)
+    sns.kdeplot(
+        x=samples[:, 0].detach().cpu().numpy(),
+        y=samples[:, 1].detach().cpu().numpy(),
+        ax=ax,
+        **kwargs,
+    )
 
 
 def imshow_density(
     density: Density,
     bins: int,
     scale: float | None = None,
-    x_bounds: Sequence[float] | None = None,
-    y_bounds: Sequence[float] | None = None,
+    x_bounds: tuple[float, float] | None = None,
+    y_bounds: tuple[float, float] | None = None,
     ax: Axes | None = None,
     **kwargs,
 ):
@@ -217,8 +224,8 @@ def contour_density(
     density: Density,
     bins: int,
     scale: float | None = None,
-    x_bounds: Sequence[float] | None = None,
-    y_bounds: Sequence[float] | None = None,
+    x_bounds: tuple[float, float] | None = None,
+    y_bounds: tuple[float, float] | None = None,
     ax: Axes | None = None,
     **kwargs,
 ):
@@ -226,8 +233,8 @@ def contour_density(
     x, y, extent = _get_scale_or_bounds(bins, scale=scale, x_bounds=x_bounds, y_bounds=y_bounds)
     X, Y = torch.meshgrid(x, y)
     xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
-    density = density.log_density(xy).reshape(bins, bins).T
-    ax.contour(density.cpu(), extent=extent, origin="lower", **kwargs)
+    density_val = density.log_density(xy).reshape(bins, bins).T
+    ax.contour(density_val.cpu(), extent=extent, origin="lower", **kwargs)
 
 
 def plot_2d_densities(
@@ -323,7 +330,13 @@ def graph_dynamics(
         imshow_density(
             density, bins, scale, kdeplot_ax, vmin=-15, alpha=0.5, cmap=plt.get_cmap("Blues")
         )
-        sns.kdeplot(x=xt[:, 0].cpu(), y=xt[:, 1].cpu(), alpha=0.5, ax=kdeplot_ax, color="grey")
+        sns.kdeplot(
+            x=xt[:, 0].detach().cpu().numpy(),
+            y=xt[:, 1].detach().cpu().numpy(),
+            alpha=0.5,
+            ax=kdeplot_ax,
+            color="grey",
+        )
         kdeplot_ax.set_title(f"Density of Samples at t={t:.1f}", fontsize=15)
         kdeplot_ax.set_xticks([])
         kdeplot_ax.set_yticks([])
@@ -338,12 +351,12 @@ def animate_dynamics(
     source_distribution: Sampleable,
     simulator: Simulator,
     density: Density,
-    timesteps: torch.Tensor[torch.int64],
+    timesteps: torch.Tensor,
     animate_every: int,
     bins: int,
     scale: float,
-    save_path: os.PathLike = "dynamics_animation.mp4",
-) -> None:
+    save_path: Path | str = "dynamics_animation.mp4",
+) -> HTML:
     """Plot the evolution of samples from source under simulation.
 
     Args:
@@ -381,7 +394,13 @@ def animate_dynamics(
         # KDE Plots
         kdeplot_ax = axes[1]
         imshow_density(density, bins, scale, kdeplot_ax, vmin=-15, alpha=0.5, cmap=BLUES_CMAP)
-        sns.kdeplot(x=xt[:, 0].cpu(), y=xt[:, 1].cpu(), alpha=0.5, ax=kdeplot_ax, color="gray")
+        sns.kdeplot(
+            x=xt[:, 0].detach().cpu().numpy(),
+            y=xt[:, 1].detach().cpu().numpy(),
+            alpha=0.5,
+            ax=kdeplot_ax,
+            color="gray",
+        )
         kdeplot_ax.set_title("Density of Samples", fontsize=15)
         kdeplot_ax.set_xticks([])
         kdeplot_ax.set_yticks([])
