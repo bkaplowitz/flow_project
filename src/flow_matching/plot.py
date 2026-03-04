@@ -193,7 +193,7 @@ def kdeplot_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None
     assert sampleable.dim == 2
     ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)
-    sns.kdeplot(x=samples[:, 0].cpu(), y=samples[:, 1].cpu(), ax=ax, **kwargs)
+    sns.kdeplot(x=samples[:, 0].detach().cpu(), y=samples[:, 1].detach().cpu(), ax=ax, **kwargs)
 
 
 def imshow_density(
@@ -209,8 +209,8 @@ def imshow_density(
     x, y, extent = _get_scale_or_bounds(bins, scale=scale, x_bounds=x_bounds, y_bounds=y_bounds)
     X, Y = torch.meshgrid(x, y)
     xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
-    density = density.log_density(xy).reshape(bins, bins).T
-    ax.imshow(density.cpu(), extent=extent, origin="lower", **kwargs)
+    density_val = density.log_density(xy).reshape(bins, bins).T
+    ax.imshow(density_val.cpu(), extent=extent, origin="lower", **kwargs)
 
 
 def contour_density(

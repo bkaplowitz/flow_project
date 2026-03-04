@@ -4,7 +4,7 @@ from flow_matching.base.dynamics import ODE
 from flow_matching.base.paths import ConditionalProbabilityPath
 
 
-class ConditionalVectorField(ODE):
+class ConditionalVectorFieldODE(ODE):
     def __init__(self, path: ConditionalProbabilityPath, x1: Tensor):
         """Construct a conditional vector field for a given probability path.
 

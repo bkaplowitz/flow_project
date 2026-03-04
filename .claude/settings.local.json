@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Skill(commit-commands:commit)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__plugin_serena_serena__list_memories",
+      "mcp__plugin_serena_serena__list_dir",
+      "mcp__plugin_episodic-memory_episodic-memory__search",
+      "mcp__plugin_episodic-memory_episodic-memory__read"
     ]
   }
 }
