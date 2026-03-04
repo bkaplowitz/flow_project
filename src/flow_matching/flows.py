@@ -1,6 +1,7 @@
+import torch
 from torch import Tensor
 
-from flow_matching.base.dynamics import ODE
+from flow_matching.base.dynamics import ODE, SDE
 from flow_matching.base.paths import ConditionalProbabilityPath
 
 
@@ -30,3 +31,50 @@ class ConditionalVectorFieldODE(ODE):
         dims = self.x1.shape[1:]
         x1_expanded = self.x1.expand((bs, *dims))
         return self.path.conditional_vector_field(xt, x1_expanded, t)
+
+
+class ConditionalVectorFieldSDE(SDE):
+    r"""Construct a Langevin of associated conditional probability path.
+
+    Langevin is relaed to score $score(X_t) = \grad_x log p_t(X_t|x1)$ and given by:
+
+    $dX_t = [u_t(X_t|x1) +1/2 sigma^2_t \grad_x log p_t(X_t|x1)]dt + \sigma dW_t$.
+
+    Args:
+        path: The conditional probability path object that this is the vector field of.
+        x1: the conditioning variable / data sample (1, dim)
+    """
+
+    def __init__(self, path: ConditionalProbabilityPath, x1: Tensor, sigma: float):
+        self.path = path
+        self.x1 = x1
+        self.sigma = sigma
+
+    def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+        """Returns the conditional vector field u_t(x|x1).
+
+        Args:
+            - xt: state at time t, shape (bs, dim)
+            - t: time, shape (bs, 1)
+
+        Returns:
+            - u_t(x|x1): shape (bs, 1), drift coefficient of Langevin dynamics of original ODE.
+        """
+        bs = xt.shape[0]
+        dims = self.x1.shape[1:]
+        x1_expanded = self.x1.expand((bs, *dims))
+        return self.path.conditional_vector_field(xt, x1_expanded, t) + (
+            0.5 * self.sigma**2 * self.path.conditional_score(xt, x1_expanded, t)
+        )
+
+    def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+        """Returns the diffusion coefficient of conditional vector field Langevin SDE.
+
+        Args:
+            - xt: state at time t, shape (bs, dim)
+            - t: time, shape (bs, 1)
+
+        Returns:
+            - sigma_t, the diffusion coefficient. (bs, dim)
+        """
+        return self.sigma * torch.ones_like(xt)

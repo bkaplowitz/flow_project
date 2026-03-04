@@ -266,7 +266,7 @@ def _(
         alpha = LinearAlpha()
         beta = SquareRootBeta()
         path = GaussianConditionalProbabilityPath(p1=p_data, alpha=alpha, beta=beta)
-        fig, axs = plt.subplots(1, 3, figsize=(16, 12))
+        fig, axs = plt.subplots(1, 3, figsize=(36, 12))
         scale = PARAMS["scale"]
         legendsize = 24
         markerscale = 1.8
@@ -299,8 +299,8 @@ def _(
 
         # Extract every nth iteration
         every_n = every_nth_index(num_timesteps, n=num_timesteps // num_marginals)
-        x_every_n = x[:, every_n, :]
-        t_every_n = ts[every_n]
+        x_every_n = x[:, every_n, :]  # (bs, nts // n, dim)
+        t_every_n = ts[0, every_n]  # (nts // n, 1)
         for plot_idx in range(x_every_n.shape[1]):
             t = t_every_n[plot_idx].item()
             ax.scatter(
@@ -322,7 +322,7 @@ def _(
         for traj_idx in range(15):
             ax.plot(
                 x[traj_idx, :, 0].detach().cpu(),
-                x[traj_idx, :, 0].detach().cpu(),
+                x[traj_idx, :, 1].detach().cpu(),
                 alpha=0.5,
                 color="black",
             )

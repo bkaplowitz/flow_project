@@ -31,7 +31,7 @@ class OrnsteinUhlenbeckProcess(SDE):
     Diffusion: $\sigma_t(X_t) = \sigma$.
     """
 
-    def __init__(self, theta: float, sigma: float) -> Tensor:
+    def __init__(self, theta: float, sigma: float):
         self.theta = theta
         self.sigma = sigma
 
@@ -51,7 +51,7 @@ class LangevinSDE(SDE):
     Diffusion $\sigma_t(X_t) = \sigma$.
     """
 
-    def __init__(self, sigma: float, density: Density) -> Tensor:
+    def __init__(self, sigma: float, density: Density):
         self.sigma = sigma
         self.density = density
 
