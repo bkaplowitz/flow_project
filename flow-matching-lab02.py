@@ -6,6 +6,7 @@ app = marimo.App(auto_download=["ipynb"])
 
 @app.cell
 def _():
+    import marimo as mo
     import matplotlib.pyplot as plt
     import torch
 
@@ -28,6 +29,7 @@ def _():
         LinearAlpha,
         SquareRootBeta,
         imshow_density,
+        mo,
         plot_conditional_probability_path,
         plot_flow_path,
         plt,
@@ -171,7 +173,7 @@ def _(
     ConditionalVectorFieldSDE,
     p_data,
     p_simple,
-    params,
+    params: dict[str, float],
     path,
     plot_flow_path,
     x1,
@@ -183,12 +185,36 @@ def _(
 
 
 @app.cell
-def _():
+def _(mo):
+    mo.md(r"""
+    # Flow Matching and Score Matching Training
+    """)
     return
 
 
 @app.cell
-def _():
+def _(
+    GaussianConditionalProbabilityPath,
+    GaussianMixture,
+    LinearAlpha,
+    SquareRootBeta,
+    device,
+    params: dict[str, float],
+):
+    from flow_matching.models import MLPVectorField
+    from flow_matching.trainer import ConditionalFlowMatchingTrainer
+
+    path_flow = GaussianConditionalProbabilityPath(
+        p1=GaussianMixture.symmetric_2D(
+            nmodes=5, std=params["target_std"], scale=params["target_scale"]
+        ).to(device),
+        alpha=LinearAlpha(),
+        beta=SquareRootBeta(),
+    ).to(device)
+    flow_model = MLPVectorField(dim=2, hidden_dims=[64, 64, 64, 64]).to(device)
+    trainer = ConditionalFlowMatchingTrainer(path=path_flow, model=flow_model)
+    _losses = trainer.train(num_epochs=5000, device=device, lr=1e-3, batch_size=1000)
+
     return
 
 

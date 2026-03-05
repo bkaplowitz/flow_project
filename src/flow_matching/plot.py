@@ -504,7 +504,7 @@ def plot_conditional_probability_path() -> None:
 
     # Sample conditioning variable x1 ~ p1 (a single data point)
     x1 = path.sample_conditioning_variable(1)  # (1,2)
-    ts = torch.linspace(0.0, 1.0, 7).to(device)
+    ts = torch.linspace(0.0, 1 - 1e-9, 7).to(device)
 
     # Plot x1
     plt.scatter(x1[:, 0].cpu(), x1[:, 1].cpu(), marker="*", color="red", s=75, label="x1")
@@ -565,7 +565,10 @@ def plot_flow_path(
         )
     x0 = path.p0.sample(num_samples).to(device)  # (num_samples, 2)
     ts = (
-        torch.linspace(0.0, 1.0, num_timesteps).view(1, -1, 1).expand(num_samples, -1, 1).to(device)
+        torch.linspace(0.0, 1 - 1e-9, num_timesteps)
+        .view(1, -1, 1)
+        .expand(num_samples, -1, 1)
+        .to(device)
     )  # (bs, nts, 1)
     x = simulator.batch_simulate_with_trajectory(x0, ts)  # (bs, nts, dims)
 

@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE '\\.py$'; then ruff check --fix \"$CLAUDE_FILE_PATH\" 2>&1 && ruff format \"$CLAUDE_FILE_PATH\" 2>&1; fi",
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -q 'src/flow_matching/'; then module=$(basename \"$CLAUDE_FILE_PATH\" .py); test_file=\"tests/test_${module}.py\"; [ -f \"$test_file\" ] && uv run pytest \"$test_file\" -x -q 2>&1 | tail -5; fi",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  }
+}
