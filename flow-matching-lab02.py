@@ -173,7 +173,7 @@ def _(
     ConditionalVectorFieldSDE,
     p_data,
     p_simple,
-    params: dict[str, float],
+    params,
     path,
     plot_flow_path,
     x1,
