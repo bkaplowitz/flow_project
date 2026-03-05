@@ -10,3 +10,4 @@ build/
 .pytest_cache/
 .ipynb_checkpoints/
 dynamics_animation.mp4
+.claude.local.md

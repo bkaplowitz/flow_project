@@ -39,7 +39,7 @@ class GaussianConditionalProbabilityPath(ConditionalProbabilityPath):
         self.alpha = alpha
         self.beta = beta
 
-    def sample_conditioning_variable(self, num_samples: int):
+    def sample_conditioning_variable(self, num_samples: int) -> Tensor:
         return self.p1.sample(num_samples)  # x1 (num_samples, dim)
 
     def sample_conditional_path(self, x1: Tensor, t: Tensor) -> Tensor:
