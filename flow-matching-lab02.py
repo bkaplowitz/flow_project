@@ -313,5 +313,12 @@ def _(
     return
 
 
+@app.cell
+def _():
+    # Compare constructed score via `ScoreFromVectorField` to learned score.
+
+    return
+
+
 if __name__ == "__main__":
     app.run()

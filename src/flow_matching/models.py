@@ -3,6 +3,8 @@
 import torch
 from torch import Tensor, nn
 
+from flow_matching.base.paths import Alpha, Beta
+
 
 def make_mlp(dims: list[int], activation: type[nn.Module] = nn.SiLU) -> nn.Sequential:
     layers = []
@@ -73,3 +75,33 @@ class MLPScore(nn.Module):
             - s_t^{theta}(x)
         """
         return self.net(torch.cat([x, t], dim=-1))
+
+
+class ScoreFromVectorField(nn.Module):
+    """Parameterization of score via learned vector field (for Gaussian probability paths)."""
+
+    def __init__(self, flow_model: MLPVectorField, alpha: Alpha, beta: Beta):
+        super().__init__()
+        self.flow_model = flow_model
+        self.alpha = alpha
+        self.beta = beta
+
+    def forward(self, x: Tensor, t: Tensor) -> Tensor:
+        r"""Uses fact for Gaussian models $\grad\log p^{ref}_t(x)=\frac{u_t^{ref}(x - a_t x)}{b_t}$.
+
+        For Gaussian models:
+
+        $a_t := \frac{\dot{a}_t}{a_t}$.
+
+        $b_t := \beta^2_t (\frac{\dot{a}_t}{a_t} - \dot{\beta}_t \beta_t)$.
+
+        Args:
+            - x, state at time t, shape (bs, dim)
+            - t: time, shape (bs, 1)
+
+        Returns:
+            - s_t^{theta} score estimated at time t, state x_t
+        """
+        a_t = self.alpha.dt(t) / self.alpha(t)
+        b_t = self.beta(t) ** 2 * self.alpha.dt(t) / self.alpha(t) - self.beta.dt(t) * self.beta(t)
+        return (self.flow_model(x, t) - a_t) / b_t
