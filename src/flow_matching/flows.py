@@ -3,6 +3,7 @@ from torch import Tensor
 
 from flow_matching.base.dynamics import ODE, SDE
 from flow_matching.base.paths import ConditionalProbabilityPath
+from flow_matching.models import MLPVectorField
 
 
 class ConditionalVectorFieldODE(ODE):
@@ -78,3 +79,20 @@ class ConditionalVectorFieldSDE(SDE):
             - sigma_t, the diffusion coefficient. (bs, dim)
         """
         return self.sigma * torch.ones_like(xt)
+
+
+class LearnedVectorFieldODE(ODE):
+    def __init__(self, net: MLPVectorField):
+        self.net = net
+
+    def drift_coef(self, xt: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        """Drift coefficient for LearnedVectorODE.
+
+        Args:
+            - x: (bs, dim)
+            - t: (bs, dim)
+
+        Returns:
+            - u_t: (bs, dim)
+        """
+        return self.net(xt, t)

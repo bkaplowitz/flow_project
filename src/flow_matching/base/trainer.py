@@ -29,7 +29,9 @@ class Trainer(ABC):
         """
         return torch.optim.Adam(self.model.parameters(), lr=lr)
 
-    def train(self, num_epochs: int, device: torch.device, lr: float = 1e-3, **kwargs: dict):
+    def train(
+        self, num_epochs: int, device: torch.device, lr: float = 1e-3, **kwargs: dict
+    ) -> None:
         """Given a number of epochs, trains model.
 
         Args:

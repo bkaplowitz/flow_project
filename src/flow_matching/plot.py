@@ -61,13 +61,13 @@ def _get_scale_or_bounds(
 
 
 def plot_trajectories_1d(
-    x0: torch.Tensor,
+    x0: Tensor,
     simulator: Simulator,
-    ts: torch.Tensor,
+    ts: Tensor,
     ax: Axes | None = None,
     show_hist: bool = False,
     decouple_hist_axis: bool = False,
-):
+) -> None:
     """Graphs the trajectories of a 1D SDE with given initial values and timesteps.
 
     Args:
@@ -165,13 +165,13 @@ def plot_trajectories_1d(
 
 
 def hist2d_samples(
-    samples,
+    samples: Tensor,
     ax: Axes | None = None,
     bins: int = 200,
     scale: float = 5.0,
     percentile: int = 99,
     **kwargs,
-):
+) -> None:
     ax = _get_ax(ax)
     H, xedges, yedges = np.histogram2d(
         samples[:, 0], samples[:, 1], bins=bins, range=[[-scale, scale], [-scale, scale]]
@@ -186,19 +186,25 @@ def hist2d_samples(
 
 
 # Several plotting utility functions
-def hist2d_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
+def hist2d_sampleable(
+    sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs
+) -> None:
     ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)  # (ns, 2)
     ax.hist2d(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
 
 
-def scatter_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
+def scatter_sampleable(
+    sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs
+) -> None:
     ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)  # (ns, 2)
     ax.scatter(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
 
 
-def kdeplot_sampleable(sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs):
+def kdeplot_sampleable(
+    sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs
+) -> None:
     assert sampleable.dim == 2
     ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)
@@ -290,11 +296,11 @@ def graph_dynamics(
     source_distribution: Sampleable,
     simulator: Simulator,
     density: Density,
-    timesteps: torch.Tensor,
+    timesteps: Tensor,
     plot_every: int,
     bins: int,
     scale: float,
-):
+) -> None:
     """Plot the evolution of samples from source under the simulation scheme.
 
     Uses simulator (itself a discretization of an ODE or SDE).
@@ -435,7 +441,9 @@ def plot_sample(ax: Axes, x1: torch.Tensor, scale: float, title: str = ""):
     )
 
 
-def plot_source_sample_densities(ax: Axes, p_simple: Density, p_data: Density, scale: float):
+def plot_source_sample_densities(
+    ax: Axes, p_simple: Density, p_data: Density, scale: float
+) -> None:
 
     # Plot source and sample densities
     imshow_density(
@@ -531,10 +539,10 @@ def plot_flow_path(
     p_simple: Density,
     p_data: Density,
     x1: Tensor,
-    params: dict,
-    num_samples=1000,
-    num_timesteps=100,
-    num_marginals=3,
+    params: dict[str, Any],
+    num_samples: int = 1000,
+    num_timesteps: int = 100,
+    num_marginals: int = 3,
 ) -> None:
     fig, axs = plt.subplots(1, 3, figsize=(36, 12))
     scale = params["scale"]

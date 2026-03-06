@@ -6,9 +6,9 @@ app = marimo.App(auto_download=["ipynb"])
 
 @app.cell
 def _():
-    import marimo as mo
-    import matplotlib.pyplot as plt
-    import torch
+    import marimo as mo  # noqa: F401 # ty: ignore[unresolved-import]
+    import matplotlib.pyplot as plt  # ty: ignore[unresolved-import]
+    import torch  # ty: ignore[unresolved-import]
 
     from flow_matching import (
         ConditionalVectorFieldODE,
@@ -67,9 +67,9 @@ def _(Gaussian, GaussianMixture, device, imshow_density, plt):
     fig_gs, axes_gs = plt.subplots(1, 3, figsize=(24, 8))
     bins = 200
 
-    scale = PARAMS["scale"]
-    x_bounds_gs = (-scale, scale)
-    y_bounds_gs = (-scale, scale)
+    scale_gs = PARAMS["scale"]
+    x_bounds_gs = (-scale_gs, scale_gs)
+    y_bounds_gs = (-scale_gs, scale_gs)
 
     axes_gs[0].set_title("Heatmap of p0")
     axes_gs[0].set_xticks([])
@@ -171,12 +171,12 @@ def _(
 @app.cell
 def _(
     ConditionalVectorFieldSDE,
-    p_data,
-    p_simple,
-    params,
+    p_data: "GaussianMixture",
+    p_simple: "Gaussian",
+    params: dict[str, float],
     path,
     plot_flow_path,
-    x1,
+    x1: "torch.Tensor",
 ):
     conditional_vector_field_sde = ConditionalVectorFieldSDE(path, x1, sigma=params["sigma"])
     plot_flow_path(conditional_vector_field_sde, path, p_simple, p_data, x1, params)
@@ -200,6 +200,7 @@ def _(
     SquareRootBeta,
     device,
     params: dict[str, float],
+    torch,
 ):
     from flow_matching.models import MLPVectorField
     from flow_matching.trainer import ConditionalFlowMatchingTrainer
@@ -211,9 +212,27 @@ def _(
         alpha=LinearAlpha(),
         beta=SquareRootBeta(),
     ).to(device)
-    flow_model = MLPVectorField(dim=2, hidden_dims=[64, 64, 64, 64]).to(device)
+    flow_model = torch.compile(MLPVectorField(dim=2, hidden_dims=[64, 64, 64, 64])).to(device)
     trainer = ConditionalFlowMatchingTrainer(path=path_flow, model=flow_model)
-    _losses = trainer.train(num_epochs=5000, device=device, lr=1e-3, batch_size=1000)
+    _losses = trainer.train(num_epochs=5000, device=device, lr=1e-3, batch_size=1000)  # ty:ignore[invalid-argument-type]
+
+    return (flow_model,)
+
+
+@app.cell
+def _(
+    flow_model,
+    p_data: "GaussianMixture",
+    p_simple: "Gaussian",
+    params: dict[str, float],
+    path,
+    plot_flow_path,
+    x1: "torch.Tensor",
+):
+    from flow_matching.flows import LearnedVectorFieldODE
+
+    learned_cond_vector_field = LearnedVectorFieldODE(flow_model)
+    plot_flow_path(learned_cond_vector_field, path, p_simple, p_data, x1, params)
 
     return
 
