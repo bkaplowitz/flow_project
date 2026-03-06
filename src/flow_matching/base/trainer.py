@@ -1,10 +1,15 @@
 """Basic trainer class."""
 
 from abc import ABC, abstractmethod
+from typing import TypedDict, Unpack
 
 import torch
 from torch import Tensor, nn
 from tqdm import tqdm
+
+
+class TrainKwargs(TypedDict, total=False):
+    batch_size: int
 
 
 class Trainer(ABC):
@@ -18,7 +23,7 @@ class Trainer(ABC):
         self.model = model
 
     @abstractmethod
-    def get_train_loss(self, **kwargs: dict) -> Tensor:
+    def get_train_loss(self, **kwargs: Unpack[TrainKwargs]) -> Tensor:
         pass
 
     def get_optimizer(self, lr: float):
@@ -30,7 +35,7 @@ class Trainer(ABC):
         return torch.optim.Adam(self.model.parameters(), lr=lr)
 
     def train(
-        self, num_epochs: int, device: torch.device, lr: float = 1e-3, **kwargs: dict
+        self, num_epochs: int, device: torch.device, lr: float = 1e-3, **kwargs: Unpack[TrainKwargs]
     ) -> tuple[list[int], list[Tensor]]:
         """Given a number of epochs, trains model.
 

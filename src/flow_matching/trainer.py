@@ -18,7 +18,7 @@ class ConditionalFlowMatchingTrainer(Trainer):
         super().__init__(model, **kwargs)
         self.path = path
 
-    def get_train_loss(self, batch_size: int = 1000, **kwargs: dict) -> Tensor:
+    def get_train_loss(self, batch_size: int = 1000, **kwargs) -> Tensor:
         # sample x1 from p_data, t from u[0,1] and xt from path(x_t|x1)
         x1 = self.path.sample_conditioning_variable(batch_size)
         t = torch.rand((batch_size, 1), device=x1.device)
@@ -33,7 +33,7 @@ class ConditionalScoreMatchingTrainer(Trainer):
         super().__init__(model, **kwargs)
         self.path = path
 
-    def get_train_loss(self, batch_size: int = 1000, **kwargs: dict) -> Tensor:
+    def get_train_loss(self, batch_size: int = 1000, **kwargs) -> Tensor:
         x1 = self.path.sample_conditioning_variable(batch_size)
         t = torch.rand((batch_size, 1), device=x1.device)
         xt = self.path.sample_conditional_path(x1, t)

@@ -214,7 +214,7 @@ def _(
     flow_model = MLPVectorField(dim=2, hidden_dims=[64, 64, 64, 64]).to(device)
     flow_model.compile()
     trainer = ConditionalFlowMatchingTrainer(path=path_flow, model=flow_model)
-    epochs, losses = trainer.train(num_epochs=5000, device=device, lr=1e-3, batch_size=1000)  # ty:ignore[invalid-argument-type]
+    epochs, losses = trainer.train(num_epochs=5000, device=device, lr=1e-3, batch_size=1000)
 
     return epochs, flow_model, losses, path_flow
 
@@ -275,7 +275,7 @@ def _(
     score_trainer = ConditionalScoreMatchingTrainer(path=path_score, model=score_model)
     epochs_score, losses_score = score_trainer.train(
         num_epochs=1000, device=device, lr=1e-3, batch_size=1000
-    )  # ty:ignore[invalid-argument-type]
+    )
 
     return (
         epochs_score,
