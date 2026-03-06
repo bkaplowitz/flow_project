@@ -31,7 +31,7 @@ class Trainer(ABC):
 
     def train(
         self, num_epochs: int, device: torch.device, lr: float = 1e-3, **kwargs: dict
-    ) -> None:
+    ) -> tuple[list[int], list[Tensor]]:
         """Given a number of epochs, trains model.
 
         Args:
@@ -41,17 +41,23 @@ class Trainer(ABC):
             - **kwargs: miscellaneous args to pass to get_train_loss.
         """
         self.model.to(device)
+        # Compile
         opt = self.get_optimizer(lr)
         self.model.train()
+        epochs = []
+        losses = []
 
         # Train loop
         pbar = tqdm(enumerate(range(num_epochs)))
-        for idx, _epoch in pbar:
+        for idx, epoch in pbar:
             opt.zero_grad()
             loss = self.get_train_loss(**kwargs)
             loss.backward()
             opt.step()
             pbar.set_description(f"Epoch {idx}, loss: {loss.item()}")
+            epochs.append(epoch)
+            losses.append(loss)
 
         # Finish
         self.model.eval()
+        return epochs, losses

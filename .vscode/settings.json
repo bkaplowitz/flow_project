@@ -1,3 +1,7 @@
 {
-    "marimo.disableManagedLanguageFeatures": false
+    "marimo.disableManagedLanguageFeatures": false,
+    "terminal.integrated.scrollback": 100000,
+    "terminal.integrated.shellIntegration.history": 10000,
+    "terminal.integrated.enableImages": false,
+    "terminal.integrated.enableKittyKeyboardProtocol": false
 }

@@ -6,7 +6,7 @@ app = marimo.App()
 
 @app.cell
 def _():
-    import torch  # ty: ignore[unresolved-import]
+    import torch
 
     from flow_matching.plot import animate_dynamics, graph_dynamics, plot_trajectories_1d
     from flow_matching.sde import BrownianMotion, LangevinSDE, OrnsteinUhlenbeckProcess
@@ -45,7 +45,7 @@ def _(
     plot_trajectories_1d,
     torch,
 ):
-    from matplotlib import pyplot as plt  # ty: ignore[unresolved-import]
+    from matplotlib import pyplot as plt
 
     sigma_brown = 1.0
     n_traj_brown = 500

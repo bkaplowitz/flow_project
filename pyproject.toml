@@ -47,6 +47,9 @@ ignore = ["D100", "D101", "D102", "D103", "D104", "D107", "D417"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.ty.environment]
+python = ".venv"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/flow_matching"]
 

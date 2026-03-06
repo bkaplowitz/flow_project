@@ -11,6 +11,7 @@ from celluloid import Camera
 from IPython.display import HTML
 from matplotlib import colors
 from matplotlib.colors import Colormap
+from torch import Tensor
 
 from flow_matching.base.dynamics import ODE, SDE
 from flow_matching.distributions import Gaussian, GaussianMixture
@@ -19,7 +20,6 @@ from flow_matching.simulator import EulerMaruyamaSimulator, EulerSimulator
 
 if TYPE_CHECKING:
     from matplotlib.axes._axes import Axes
-    from torch import Tensor
 
     from flow_matching.base.probability import Density, Sampleable
     from flow_matching.base.simulator import Simulator
@@ -54,7 +54,7 @@ def _get_scale_or_bounds(
     elif x_bounds is not None and y_bounds is not None:
         x = torch.linspace(*x_bounds, bins).to(device)
         y = torch.linspace(*y_bounds, bins).to(device)
-        extent = x_bounds + y_bounds
+        extent = (x_bounds[0], x_bounds[1], y_bounds[0], y_bounds[1])
     else:
         raise ValueError("Either scale or x_bounds and y_bounds have to be defined.")
     return x, y, extent
@@ -534,7 +534,7 @@ def plot_conditional_probability_path() -> None:
 
 
 def plot_flow_path(
-    cond_vector_field: Any,
+    cond_vector_field: ODE | SDE,
     path: GaussianConditionalProbabilityPath,
     p_simple: Density,
     p_data: Density,
@@ -544,6 +544,7 @@ def plot_flow_path(
     num_timesteps: int = 100,
     num_marginals: int = 3,
 ) -> None:
+    """Plots the flow path for a conditional vector field as either an ODE or SDE."""
     fig, axs = plt.subplots(1, 3, figsize=(36, 12))
     scale = params["scale"]
     legendsize = 24
@@ -620,6 +621,104 @@ def plot_flow_path(
         t_many_samples = t_every_n[plot_idx].unsqueeze(0).expand(num_samples, 1)
         x1_many_samples = x1.expand(num_samples, 2)
         marginal_samples = path.sample_conditional_path(x1_many_samples, t_many_samples)
+        ax.scatter(
+            marginal_samples[:, 0].detach().cpu(),
+            marginal_samples[:, 1].detach().cpu(),
+            marker="o",
+            alpha=0.5,
+            label=f"t={t_many_samples[0, 0].item():.2f}",
+        )
+    plot_source_sample_densities(ax, p_simple, p_data, scale)
+    ax.legend(prop={"size": legendsize}, loc="upper right", markerscale=markerscale)
+
+    plt.show()
+
+
+def plot_marginal_flow_path(
+    cond_vector_field: ODE | SDE,
+    path: GaussianConditionalProbabilityPath,
+    p_simple: Density,
+    p_data: Density,
+    x1: Tensor,
+    params: dict[str, Any],
+    num_samples: int = 1000,
+    num_timesteps: int = 100,
+    num_marginals: int = 3,
+):
+    """Plots the flow path for a marginal vector field as either an ODE or SDE."""
+    fig, axs = plt.subplots(1, 3, figsize=(36, 12))
+    scale = params["scale"]
+    legendsize = 24
+    markerscale = 1.8
+    ########################
+    # Plot 1: Ground truth #
+    ########################
+    ax: Axes
+    ax = axs[1]
+
+    ax.set_title("Samples from Learned Marginal ODE", fontsize=20)
+
+    # plot source and sample densities
+    plot_source_sample_densities(ax, p_simple, p_data, scale)
+
+    # Construct ODE and simulator
+    if isinstance(cond_vector_field, ODE):
+        simulator = EulerSimulator(cond_vector_field)
+    elif isinstance(cond_vector_field, SDE):
+        simulator = EulerMaruyamaSimulator(cond_vector_field)
+    else:
+        raise ValueError(
+            "Expected cond_vector_field to be ODE or SDE instance",
+            f"instead found {type(cond_vector_field)}",
+        )
+    x0 = path.p0.sample(num_samples).to(device)  # (num_samples, 2)
+    ts = (
+        torch.linspace(0.0, 1 - 1e-9, num_timesteps)
+        .view(1, -1, 1)
+        .expand(num_samples, -1, 1)
+        .to(device)
+    )  # (bs, nts, 1)
+    x = simulator.batch_simulate_with_trajectory(x0, ts)  # (bs, nts, dims)
+
+    # Extract every nth iteration
+    every_n = every_nth_index(num_timesteps, n=num_timesteps // num_marginals)
+    x_every_n = x[:, every_n, :]  # (bs, nts // n, dim)
+    t_every_n = ts[0, every_n]  # (nts // n, 1)
+    for plot_idx in range(x_every_n.shape[1]):
+        t = t_every_n[plot_idx].item()
+        ax.scatter(
+            x=x_every_n[:, plot_idx, 0].detach().cpu(),
+            y=x_every_n[:, plot_idx, 1].detach().cpu(),
+            marker="o",
+            alpha=0.5,
+            label=f"t={t:.2f}",
+        )
+    ax.legend(prop={"size": legendsize}, loc="upper right", markerscale=markerscale)
+    # Graph trajectories of ODE
+    ########################
+    # Plot 2: Trajectories of learned marginal ode #
+    ########################
+    ax = axs[2]
+    ax.set_title("Trajectories of Learned Marginal ODE")
+    plot_source_sample_densities(ax, p_simple, p_data, scale)
+    # Plot first 15 trajectories
+    for traj_idx in range(num_samples // 10):
+        ax.plot(
+            x[traj_idx, :, 0].detach().cpu(),
+            x[traj_idx, :, 1].detach().cpu(),
+            alpha=0.5,
+            color="black",
+        )
+    ax.legend(prop={"size": legendsize}, loc="upper right", markerscale=markerscale)
+    #########################################
+    # Graph Ground-truth probability path   #
+    #########################################
+    ax = axs[0]
+    ax.set_title("Ground-Truth Marginal Probability Path")
+    # Plot path
+    for plot_idx in range(x_every_n.shape[1]):
+        t_many_samples = t_every_n[plot_idx].unsqueeze(0).expand(num_samples, 1)
+        marginal_samples = path.sample_marginal_path(t_many_samples)
         ax.scatter(
             marginal_samples[:, 0].detach().cpu(),
             marginal_samples[:, 1].detach().cpu(),

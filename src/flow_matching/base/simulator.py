@@ -22,7 +22,7 @@ class Simulator(ABC):
         """
         pass
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def simulate(self, x0: Tensor, ts: Tensor) -> Tensor:
         """Simulates using discretization given by ts.
 
@@ -40,7 +40,7 @@ class Simulator(ABC):
             x = self.step(x, t, h)
         return x
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def simulate_with_trajectory(self, x0: Tensor, ts: Tensor) -> Tensor:
         """Simulates using discretization given by ts.
 
@@ -60,7 +60,7 @@ class Simulator(ABC):
             xs.append(x.clone())
         return torch.stack(xs, dim=1)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def batch_simulate(self, x0: Tensor, ts: Tensor) -> Tensor:
         """Simulates across batched x0, ts not assuming common ts for each value.
 
@@ -81,7 +81,7 @@ class Simulator(ABC):
             x = self.step(x, t, h)
         return x
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def batch_simulate_with_trajectory(self, x0: Tensor, ts: Tensor) -> Tensor:
         """Simulates using discretization given by ts across batched time values.
 

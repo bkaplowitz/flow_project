@@ -48,3 +48,28 @@ class MLPVectorField(nn.Module):
             - u_t^{theta}: vector field, shape (bs, dim)
         """
         return self.net(torch.cat([x, t], dim=-1))
+
+
+class MLPScore(nn.Module):
+    """MLP-parameterization of learned score vector field."""
+
+    def __init__(
+        self, dim: int, hidden_dims: list[int], activation: type[nn.Module] = torch.nn.SiLU
+    ):
+        super().__init__()
+        input_dim = dim + 1  # x dim + t
+        output_dim = dim
+        all_dims = [input_dim, *hidden_dims, output_dim]
+        self.net = make_mlp(all_dims, activation)
+
+    def forward(self, x: Tensor, t: Tensor):
+        """Computes score at a given (x,t) coordinate.
+
+        Args:
+            - x: shape (bs, dim)
+            - t: shape (bs, 1)
+
+        Returns:
+            - s_t^{theta}(x)
+        """
+        return self.net(torch.cat([x, t], dim=-1))

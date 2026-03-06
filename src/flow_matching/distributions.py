@@ -14,7 +14,7 @@ class Gaussian(nn.Module, Sampleable, Density):
     Wraps torch.distributions.MultivariateNormal.
     """
 
-    def __init__(self, mean, cov):
+    def __init__(self, mean: Tensor, cov: Tensor):
         """Initialize Gaussian.
 
         Args:
@@ -23,8 +23,11 @@ class Gaussian(nn.Module, Sampleable, Density):
         """
         super().__init__()
         # static
+        self.mean: Tensor
+        self.cov: Tensor
         self.register_buffer("mean", mean)
         self.register_buffer("cov", cov)
+        self._cached_dist = None
 
     @property
     def dim(self) -> int:
@@ -32,7 +35,15 @@ class Gaussian(nn.Module, Sampleable, Density):
 
     @property
     def distribution(self) -> D.MultivariateNormal:
-        return D.MultivariateNormal(loc=self.mean, covariance_matrix=self.cov, validate_args=False)
+        if self._cached_dist is None:
+            self._cached_dist = D.MultivariateNormal(
+                loc=self.mean, covariance_matrix=self.cov, validate_args=False
+            )
+        return self._cached_dist
+
+    def _apply(self, fn, recurse=True):
+        self._cached_dist = None
+        return super()._apply(fn, recurse)
 
     def sample(self, num_samples: int) -> Tensor:
         return self.distribution.sample((num_samples,))
@@ -69,9 +80,13 @@ class GaussianMixture(nn.Module, Sampleable, Density):
         """
         super().__init__()
         self.nmodes = means.shape[0]
+        self.means: Tensor
+        self.covs: Tensor
+        self.weights: Tensor
         self.register_buffer("means", means)
         self.register_buffer("covs", covs)
         self.register_buffer("weights", weights)
+        self._cached_dist = None
 
     @property
     def dim(self) -> int:
@@ -79,13 +94,21 @@ class GaussianMixture(nn.Module, Sampleable, Density):
 
     @property
     def distribution(self):
-        return D.MixtureSameFamily(
-            mixture_distribution=D.Categorical(probs=self.weights, validate_args=False),
-            component_distribution=D.MultivariateNormal(
-                loc=self.means, covariance_matrix=self.covs, validate_args=False
-            ),
-            validate_args=False,
-        )
+        if self._cached_dist is None:
+            self._cached_dist = D.MixtureSameFamily(
+                mixture_distribution=D.Categorical(probs=self.weights, validate_args=False),
+                component_distribution=D.MultivariateNormal(
+                    loc=self.means,
+                    covariance_matrix=self.covs,
+                    validate_args=False,
+                ),
+                validate_args=False,
+            )
+        return self._cached_dist
+
+    def _apply(self, fn, recurse=True):
+        self._cached_dist = None
+        return super()._apply(fn, recurse)
 
     def log_density(self, x: Tensor) -> Tensor:
         return self.distribution.log_prob(x).view(-1, 1)

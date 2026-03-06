@@ -3,7 +3,7 @@ from torch import Tensor
 
 from flow_matching.base.dynamics import ODE, SDE
 from flow_matching.base.paths import ConditionalProbabilityPath
-from flow_matching.models import MLPVectorField
+from flow_matching.models import MLPScore, MLPVectorField
 
 
 class ConditionalVectorFieldODE(ODE):
@@ -96,3 +96,43 @@ class LearnedVectorFieldODE(ODE):
             - u_t: (bs, dim)
         """
         return self.net(xt, t)
+
+
+class LangevinFlowSDE(SDE):
+    def __init__(self, flow_model: MLPVectorField, score_model: MLPScore, sigma: float):
+        """A learned flow representing a langevin model.
+
+        Has associated flow `flow_model` and score `score_model`.
+
+        Args:
+            - flow_model: the flow model object to which this vector field corresponds.
+            - score_model: the score model associated with the vector field.
+        """
+        super().__init__()
+        self.flow_model = flow_model
+        self.score_model = score_model
+        self.sigma = sigma
+
+    def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+        """Returns drift coefficient at xt, t.
+
+        Args:
+            - xt: state at time t, shape (bs, dim)
+            - t: time, shape (bs, 1)
+
+        Returns:
+            - u_t(x|z) drift coefficient shape (bs, dim)
+        """
+        return self.flow_model(xt, t) + 0.5 * self.sigma**2 * self.score_model(xt, t)
+
+    def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+        """Returns diffusion coefficient at xt, t.
+
+        Args:
+            - xt: state at time t, shape (bs, dim)
+            - t: time, shape (bs, 1)
+
+        Returns:
+            - sigma_t, diffusion coefficient shape (bs, dim)
+        """
+        return self.sigma * torch.ones_like(xt)
