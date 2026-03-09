@@ -1,8 +1,12 @@
 """Specific distributions."""
 
+from collections.abc import Callable
+from functools import partial
+
 import numpy as np
 import torch
 import torch.distributions as D
+from sklearn.datasets import make_circles, make_moons
 from torch import Tensor, nn
 
 from flow_matching.base.probability import Density, Sampleable
@@ -134,3 +138,116 @@ class GaussianMixture(nn.Module, Sampleable, Density):
         covs = torch.diag_embed(torch.ones(nmodes, 2)) * std**2
         weights = torch.ones(nmodes) / nmodes
         return cls(means, covs, weights)
+
+
+# Without densities
+
+
+class ConstructableSampleable(Sampleable):
+    """Implements sklearn make_moon, make_circles, and a checkerboard distribution."""
+
+    def __init__(
+        self,
+        device: torch.device,
+        make_dist: Callable,
+        noise: float = 0.05,
+        scale: float = 5.0,
+        offset: Tensor | None = None,
+    ) -> None:
+        """Makes a concrete type of sampleable of either circle, moon type.
+
+        Can also be based on the custom function make_dist.
+
+        Args:
+        - noise: Stdev of noise added to data
+        - scale: how much to scale data
+        - offset: how much to shift (2,)
+        """
+        self.noise = noise
+        self.scale = scale
+        self.device = device
+        if offset is None:
+            offset = torch.zeros((2,))
+        self.offset = offset.to(device)
+        self.make_dist = make_dist
+
+    @property
+    def dim(self) -> int:
+        return 2
+
+    def sample(self, num_samples: int) -> Tensor:
+        """Samples from distribution.
+
+        Args:
+            - num_samples: number of samples to generate
+
+        Returns:
+            - torch.Tensor (num_samples, 3)
+
+        """
+        samples, _ = self.make_dist(n_samples=num_samples, noise=self.noise, random_state=None)
+        return (
+            self.scale * torch.from_numpy(samples.astype(np.float32)).to(self.device) + self.offset
+        )
+
+    @classmethod
+    def Moon(
+        cls,
+        device: torch.device,
+        noise: float = 0.05,
+        scale: float = 5.0,
+        offset: Tensor | None = None,
+    ) -> "ConstructableSampleable":
+        """Generates a sampleable instance with moons."""
+        return cls(device, make_moons, noise, scale, offset)
+
+    @classmethod
+    def Circle(
+        cls,
+        device: torch.device,
+        noise: float = 0.05,
+        scale: float = 5.0,
+        offset: Tensor | None = None,
+        factor: float = 0.5,
+    ) -> "ConstructableSampleable":
+        """Generates a sampleable instance with circles."""
+        _make_circles = partial(make_circles, factor=factor)
+        return cls(device, _make_circles, noise, scale, offset)
+
+
+class CheckerboardSampleable(Sampleable):
+    def __init__(self, device: torch.device, grid_size: int = 3, scale: float = 5.0):
+        """Initializes a sampleable checkerboard dataset.
+
+        Args:
+        - grid_size: number of gridpoitns for checkerboard
+        - scale: how much to scale data.
+        """
+        self.grid_size = grid_size
+        self.scale = scale
+        self.device = device
+
+    @property
+    def dim(self) -> int:
+        return 2
+
+    def sample(self, num_samples: int) -> Tensor:
+        """Samples from the distribution.
+
+        Args:
+            - num_samples: number of samples to generate.
+
+        Returns:
+            - torch.Tensor: shape (num_samples, 3)
+        """
+        grid_length = 2 * self.scale / self.grid_size
+        samples = torch.zeros(0, 2).to(self.device)
+        while samples.shape[0] < num_samples:
+            # sample num_samples:
+            # Samples centered around [-1, 1]
+            new_samples = (torch.rand(num_samples, 2).to(self.device) - 0.5) * 2 * self.scale
+            x_mask = torch.floor((new_samples[:, 0] + self.scale) / grid_length) % 2 == 0  # (bs,)
+            y_mask = torch.floor((new_samples[:, 1] + self.scale) / grid_length) % 2 == 0  # (bs, )
+            accept_mask = torch.logical_xor(~x_mask, y_mask)
+            samples = torch.cat([samples, new_samples[accept_mask]], dim=0)
+        return samples[:num_samples]
