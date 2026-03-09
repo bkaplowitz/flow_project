@@ -15,6 +15,7 @@ from torch import Tensor
 
 from flow_matching.base.dynamics import ODE, SDE
 from flow_matching.distributions import Gaussian, GaussianMixture
+from flow_matching.models import MLPScore, ScoreFromVectorField
 from flow_matching.paths import GaussianConditionalProbabilityPath, LinearAlpha, SquareRootBeta
 from flow_matching.simulator import EulerMaruyamaSimulator, EulerSimulator
 
@@ -730,3 +731,78 @@ def plot_marginal_flow_path(
     ax.legend(prop={"size": legendsize}, loc="upper right", markerscale=markerscale)
 
     plt.show()
+
+
+def compare_score_from_learned_flow_learned_score(
+    score_model: MLPScore,
+    score_model_from_flow: ScoreFromVectorField,
+    params: dict[str, float | int],
+    num_bins=30,
+    num_marginals=4,
+) -> None:
+    """Quiver plot comparison of learned score model and score model from learned flow model."""
+    # Set font size
+
+    path = GaussianConditionalProbabilityPath(
+        p1=GaussianMixture.symmetric_2D(
+            nmodes=5, std=params["target_std"], scale=params["target_scale"]
+        ).to(device),
+        alpha=LinearAlpha(),
+        beta=SquareRootBeta(),
+    ).to(device)
+    learned_score_model = score_model
+
+    # Plot score fields
+    fig, axs = plt.subplots(nrows=2, ncols=num_marginals, figsize=(6 * num_marginals, 12))
+    axs = axs.reshape((2, num_marginals))
+    scale = params["scale"]
+    ts = torch.linspace(0.0, 0.999, num_marginals).to(device)
+    xs = torch.linspace(-scale, scale, num_bins).to(device)
+    ys = torch.linspace(-scale, scale, num_bins).to(device)
+    xx, yy = torch.meshgrid(xs, ys)
+    xx = xx.reshape(-1, 1)
+    yy = yy.reshape(-1, 1)
+    xy = torch.cat([xx, yy], dim=-1)
+    axs[0, 0].set_ylabel("Learned from Score matching", fontsize=12)
+    axs[1, 0].set_ylabel(r"Computed from $u_t^{\theta}(x)$", fontsize=12)
+    for idx in range(num_marginals):
+        t = ts[idx]
+        bs = num_bins**2
+        tt = t.view(1, 1).expand(bs, 1)
+
+        # Learned scores
+        learned_scores = learned_score_model(xy, tt)
+        learned_scores_x = learned_scores[:, 0]
+        learned_scores_y = learned_scores[:, 1]
+        ax = axs[0, idx]
+        ax.quiver(
+            xx.detach().cpu(),
+            yy.detach().cpu(),
+            learned_scores_x.detach().cpu(),
+            learned_scores_y.detach().cpu(),
+            scale=125,
+            alpha=0.5,
+        )
+        plot_source_sample_densities(ax, path.p0, path.p1, scale=scale)
+        ax.set_title(r"$s^{\theta}_t$" + f" at t={t.item():.2f}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        # Score model from flow
+        ax = axs[1, idx]
+        flow_scores = score_model_from_flow(xy, tt)
+        flow_scores_x = flow_scores[:, 0]
+        flow_scores_y = flow_scores[:, 1]
+        ax.quiver(
+            xx.detach().cpu(),
+            yy.detach().cpu(),
+            flow_scores_x.detach().cpu(),
+            flow_scores_y.detach().cpu(),
+            scale=125,
+            alpha=0.5,
+        )
+        plot_source_sample_densities(ax, path.p0, path.p1, scale=scale)
+        ax.set_title(r"$\tilde{s}^{\theta}_t$" + f" at t={t.item():.2f}")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        # Remove ticks
+        # Flow score model

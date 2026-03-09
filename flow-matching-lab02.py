@@ -274,7 +274,7 @@ def _(
     score_model.compile()
     score_trainer = ConditionalScoreMatchingTrainer(path=path_score, model=score_model)
     epochs_score, losses_score = score_trainer.train(
-        num_epochs=1000, device=device, lr=1e-3, batch_size=1000
+        num_epochs=2000, device=device, lr=1e-3, batch_size=1000
     )
 
     return (
@@ -314,8 +314,24 @@ def _(
 
 
 @app.cell
-def _():
+def _(
+    LinearAlpha,
+    SquareRootBeta,
+    flow_model,
+    params: dict[str, float],
+    plt,
+    score_model,
+):
     # Compare constructed score via `ScoreFromVectorField` to learned score.
+    from flow_matching.models import ScoreFromVectorField
+    from flow_matching.plot import compare_score_from_learned_flow_learned_score
+
+    score_from_flow = ScoreFromVectorField(flow_model, alpha=LinearAlpha(), beta=SquareRootBeta())
+    scale = params["scale"]
+    _x_bounds = (-scale, scale)
+    _y_bounds = (-scale, scale)
+    compare_score_from_learned_flow_learned_score(score_model, score_from_flow, params)
+    plt.show()
 
     return
 

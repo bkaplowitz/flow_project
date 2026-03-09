@@ -104,4 +104,4 @@ class ScoreFromVectorField(nn.Module):
         """
         a_t = self.alpha.dt(t) / self.alpha(t)
         b_t = self.beta(t) ** 2 * self.alpha.dt(t) / self.alpha(t) - self.beta.dt(t) * self.beta(t)
-        return (self.flow_model(x, t) - a_t) / b_t
+        return (self.flow_model(x, t) - a_t * x) / b_t
