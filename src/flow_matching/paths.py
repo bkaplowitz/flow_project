@@ -3,8 +3,7 @@
 import torch
 from torch import Tensor
 
-from flow_matching.base.paths import Alpha, Beta, ConditionalProbabilityPath
-from flow_matching.base.probability import Sampleable
+from flow_matching.base.paths import Alpha, Beta, ConditionalProbabilityPath, SampleableDensity
 from flow_matching.distributions import Gaussian
 
 
@@ -32,7 +31,7 @@ class SquareRootBeta(Beta):
 class GaussianConditionalProbabilityPath(ConditionalProbabilityPath):
     """A gaussian conditional probability path, starting from initial gaussian distribution."""
 
-    def __init__(self, p1: Sampleable, alpha: Alpha, beta: Beta):
+    def __init__(self, p1: SampleableDensity, alpha: Alpha, beta: Beta):
         self.dim = p1.dim
         p0 = Gaussian.isotropic(p1.dim, 1.0)
         super().__init__(p0, p1)
@@ -53,7 +52,7 @@ class GaussianConditionalProbabilityPath(ConditionalProbabilityPath):
             xt: samples from p_t(x|x1) (num_samples, dims)
         """
         # alpha_t * x1 + beta_t * epsilon, where epsilon ~ N(0,I) = p0
-        return self.alpha(t) * x1 + self.beta(t) * torch.randn_like(x1)
+        return self.alpha(t) * x1 + self.beta(t) * torch.randn_like(x1, device=x1.device)
 
     def conditional_vector_field(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
         """Evaluate the conditional vector field u_t(x|x1).

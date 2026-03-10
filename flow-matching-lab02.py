@@ -51,23 +51,25 @@ def _(torch):
 
 
 @app.cell
-def _(Gaussian, GaussianMixture, device, imshow_density, plt):
-    PARAMS = {
-        "scale": 15.0,
-        "target_scale": 10.0,
-        "target_std": 1.0,
-    }
+def _(Box, Gaussian, GaussianMixture, device, imshow_density, plt):
+    _params = Box(
+        {
+            "scale": 15.0,
+            "target_scale": 10.0,
+            "target_std": 1.0,
+        }
+    )
     # initial distribution
     p0 = Gaussian.isotropic(dim=2, std=1.0).to(device)
     # target
     p1 = GaussianMixture.symmetric_2D(
-        nmodes=5, std=PARAMS["target_std"], scale=PARAMS["target_scale"]
+        nmodes=5, std=_params.target_std, scale=_params.target_scale
     ).to(device)
 
     fig_gs, axes_gs = plt.subplots(1, 3, figsize=(24, 8))
     bins = 200
 
-    scale_gs = PARAMS["scale"]
+    scale_gs = _params.scale
     x_bounds_gs = (-scale_gs, scale_gs)
     y_bounds_gs = (-scale_gs, scale_gs)
 
@@ -145,17 +147,21 @@ def _(
     plot_flow_path,
     torch,
 ):
+    from box import Box
+
     # Plot ODE flow
-    params: dict[str, float] = {
-        "scale": 15.0,
-        "target_scale": 10.0,
-        "target_std": 1.0,
-        "sigma": 2.5,
-    }
+    params: Box = Box(
+        {
+            "scale": 15.0,
+            "target_scale": 10.0,
+            "target_std": 1.0,
+            "sigma": 2.5,
+        }
+    )
     # Construct path and vector field
     p_simple: Gaussian = Gaussian.isotropic(dim=2, std=1.0).to(device)
     p_data: GaussianMixture = GaussianMixture.symmetric_2D(
-        nmodes=5, std=params["target_std"], scale=params["target_scale"]
+        nmodes=5, std=params.target_std, scale=params.target_scale
     ).to(device)
     alpha = LinearAlpha()
     beta = SquareRootBeta()
@@ -165,7 +171,7 @@ def _(
     conditional_vector_field_ode = ConditionalVectorFieldODE(path, x1)
     plot_flow_path(conditional_vector_field_ode, path, p_simple, p_data, x1, params)
 
-    return p_data, p_simple, params, path, x1
+    return Box, p_data, p_simple, params, path, x1
 
 
 @app.cell
@@ -173,12 +179,12 @@ def _(
     ConditionalVectorFieldSDE,
     p_data: "GaussianMixture",
     p_simple: "Gaussian",
-    params: dict[str, float],
+    params: "Box",
     path,
     plot_flow_path,
     x1: "torch.Tensor",
 ):
-    conditional_vector_field_sde = ConditionalVectorFieldSDE(path, x1, sigma=params["sigma"])
+    conditional_vector_field_sde = ConditionalVectorFieldSDE(path, x1, sigma=params.sigma)
     plot_flow_path(conditional_vector_field_sde, path, p_simple, p_data, x1, params)
 
     return
@@ -199,14 +205,14 @@ def _(
     LinearAlpha,
     SquareRootBeta,
     device,
-    params: dict[str, float],
+    params: "Box",
 ):
     from flow_matching.models import MLPVectorField
     from flow_matching.trainer import ConditionalFlowMatchingTrainer
 
     path_flow = GaussianConditionalProbabilityPath(
         p1=GaussianMixture.symmetric_2D(
-            nmodes=5, std=params["target_std"], scale=params["target_scale"]
+            nmodes=5, std=params.target_std, scale=params.target_scale
         ).to(device),
         alpha=LinearAlpha(),
         beta=SquareRootBeta(),
@@ -235,7 +241,7 @@ def _(
     flow_model,
     p_data: "GaussianMixture",
     p_simple: "Gaussian",
-    params: dict[str, float],
+    params: "Box",
     path_flow,
     x1: "torch.Tensor",
 ):
@@ -256,13 +262,13 @@ def _(
     LinearAlpha,
     SquareRootBeta,
     device,
-    params: dict[str, float],
+    params: "Box",
 ):
     from flow_matching.models import MLPScore
     from flow_matching.trainer import ConditionalScoreMatchingTrainer
 
     p_data_score = GaussianMixture.symmetric_2D(
-        nmodes=5, std=params["target_std"], scale=params["target_scale"]
+        nmodes=5, std=params.target_std, scale=params.target_scale
     ).to(device)
     p0_score = Gaussian.isotropic(dim=2, std=1.0).to(device)
     path_score = GaussianConditionalProbabilityPath(
@@ -299,7 +305,7 @@ def _(
     flow_model,
     p0_score,
     p_data_score,
-    params: dict[str, float],
+    params: "Box",
     path_score,
     plot_marginal_flow_path,
     score_model,
@@ -318,7 +324,7 @@ def _(
     LinearAlpha,
     SquareRootBeta,
     flow_model,
-    params: dict[str, float],
+    params: "Box",
     plt,
     score_model,
 ):
@@ -327,7 +333,7 @@ def _(
     from flow_matching.plot import compare_score_from_learned_flow_learned_score
 
     score_from_flow = ScoreFromVectorField(flow_model, alpha=LinearAlpha(), beta=SquareRootBeta())
-    scale = params["scale"]
+    scale = params.scale
     _x_bounds = (-scale, scale)
     _y_bounds = (-scale, scale)
     compare_score_from_learned_flow_learned_score(score_model, score_from_flow, params)

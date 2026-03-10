@@ -9,13 +9,13 @@ from abc import ABC, abstractmethod
 import torch
 from torch import Tensor, nn
 
-from .probability import Sampleable
+from .probability import SampleableDensity
 
 
 class ConditionalProbabilityPath(nn.Module, ABC):
     """Abstract base class for conditional probability paths."""
 
-    def __init__(self, p0: Sampleable, p1: Sampleable) -> None:
+    def __init__(self, p0: SampleableDensity, p1: SampleableDensity) -> None:
         super().__init__()
         self.p0 = p0
         self.p1 = p1

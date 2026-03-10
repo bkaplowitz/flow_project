@@ -1,12 +1,13 @@
 """Plotting helpers."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import torch
+from box import Box
 from celluloid import Camera
 from IPython.display import HTML
 from matplotlib import colors
@@ -252,7 +253,7 @@ def contour_density(
 
 
 def plot_2d_densities(
-    densities: dict[str, Density],
+    densities: Box,
     bins=100,
     scale=15,
     figsize=(18, 6),
@@ -469,11 +470,11 @@ def plot_source_sample_densities(
 
 def plot_conditional_probability_path() -> None:
     # Construct conditional probability path
-    PARAMS = {"scale": 15.0, "target_scale": 10.0, "target_std": 1.0}
+    _params = Box({"scale": 15.0, "target_scale": 10.0, "target_std": 1.0})
     bins = 200
     p0 = Gaussian.isotropic(dim=2, std=1.0).to(device)
     p1 = GaussianMixture.symmetric_2D(
-        nmodes=5, std=PARAMS["target_std"], scale=PARAMS["target_scale"]
+        nmodes=5, std=_params.target_std, scale=_params.target_scale
     ).to(device)
     # Construct conditional probability path
     path = GaussianConditionalProbabilityPath(
@@ -482,7 +483,7 @@ def plot_conditional_probability_path() -> None:
         beta=SquareRootBeta(),
     ).to(device)
 
-    scale = PARAMS["scale"]
+    scale = _params.scale
     x_bounds = (-scale, scale)
     y_bounds = (-scale, scale)
 
@@ -540,14 +541,14 @@ def plot_flow_path(
     p_simple: Density,
     p_data: Density,
     x1: Tensor,
-    params: dict[str, Any],
+    params: Box,
     num_samples: int = 1000,
     num_timesteps: int = 100,
     num_marginals: int = 3,
 ) -> None:
     """Plots the flow path for a conditional vector field as either an ODE or SDE."""
     fig, axs = plt.subplots(1, 3, figsize=(36, 12))
-    scale = params["scale"]
+    scale = params.scale
     legendsize = 24
     markerscale = 1.8
     ########################
@@ -641,14 +642,14 @@ def plot_marginal_flow_path(
     p_simple: Density,
     p_data: Density,
     x1: Tensor,
-    params: dict[str, Any],
+    params: Box,
     num_samples: int = 1000,
     num_timesteps: int = 100,
     num_marginals: int = 3,
-):
+) -> None:
     """Plots the flow path for a marginal vector field as either an ODE or SDE."""
     fig, axs = plt.subplots(1, 3, figsize=(36, 12))
-    scale = params["scale"]
+    scale = params.scale
     legendsize = 24
     markerscale = 1.8
     ########################
@@ -736,7 +737,7 @@ def plot_marginal_flow_path(
 def compare_score_from_learned_flow_learned_score(
     score_model: MLPScore,
     score_model_from_flow: ScoreFromVectorField,
-    params: dict[str, float | int],
+    params: Box,
     num_bins=30,
     num_marginals=4,
 ) -> None:
@@ -745,7 +746,7 @@ def compare_score_from_learned_flow_learned_score(
 
     path = GaussianConditionalProbabilityPath(
         p1=GaussianMixture.symmetric_2D(
-            nmodes=5, std=params["target_std"], scale=params["target_scale"]
+            nmodes=5, std=params.target_std, scale=params.target_scale
         ).to(device),
         alpha=LinearAlpha(),
         beta=SquareRootBeta(),
@@ -755,7 +756,7 @@ def compare_score_from_learned_flow_learned_score(
     # Plot score fields
     fig, axs = plt.subplots(nrows=2, ncols=num_marginals, figsize=(6 * num_marginals, 12))
     axs = axs.reshape((2, num_marginals))
-    scale = params["scale"]
+    scale = params.scale
     ts = torch.linspace(0.0, 0.999, num_marginals).to(device)
     xs = torch.linspace(-scale, scale, num_bins).to(device)
     ys = torch.linspace(-scale, scale, num_bins).to(device)

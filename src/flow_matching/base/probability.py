@@ -57,3 +57,10 @@ class Sampleable(ABC):
             samples: shape (num_samples, dim)
         """
         pass
+
+
+class SampleableDensity(Sampleable, Density, ABC):
+    """An  object that is both Sampleable and a Density."""
+
+    def __init__(self):
+        super().__init__()

@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "celluloid>=0.2.0",
+    "cython>=3.2.4",
     "ffmpeg>=1.4",
     "ipykernel>=7.2.0",
     "jupyter>=1.1.1",
@@ -20,11 +21,13 @@ dependencies = [
     "nbformat>=5.10.4",
     "numpy>=2.4.2",
     "pip>=26.0.1",
+    "python-box[all]~=7.0",
     "scikit-learn>=1.8.0",
     "scipy>=1.17.0",
     "seaborn>=0.13.2",
     "torch>=2.10.0",
     "tqdm>=4.67.3",
+    "wheel>=0.46.3",
 ]
 
 [project.optional-dependencies]

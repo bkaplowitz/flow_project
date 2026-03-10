@@ -9,10 +9,11 @@ import torch.distributions as D
 from sklearn.datasets import make_circles, make_moons
 from torch import Tensor, nn
 
-from flow_matching.base.probability import Density, Sampleable
+from flow_matching.base.paths import SampleableDensity
+from flow_matching.base.probability import Sampleable
 
 
-class Gaussian(nn.Module, Sampleable, Density):
+class Gaussian(nn.Module, SampleableDensity):
     """Two-dimensional Gaussian distribution.
 
     Wraps torch.distributions.MultivariateNormal.
@@ -63,7 +64,7 @@ class Gaussian(nn.Module, Sampleable, Density):
         return cls(mean, cov)
 
 
-class GaussianMixture(nn.Module, Sampleable, Density):
+class GaussianMixture(nn.Module, SampleableDensity):
     """Two-dimensional Gaussian mixture model.
 
     Wraps torch.distributions.MixtureSameFamily.
