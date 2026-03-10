@@ -85,3 +85,51 @@ class GaussianConditionalProbabilityPath(ConditionalProbabilityPath):
             conditional_score: conditional score (num_samples, dims)
         """
         return (self.alpha(t) * x1 - xt) / (self.beta(t) ** 2)
+
+
+class LinearConditionalProbabilityPath(ConditionalProbabilityPath):
+    def __init__(self, p0: SampleableDensity, p1: SampleableDensity):
+        super().__init__(p0, p1)
+
+    def sample_conditioning_variable(self, num_samples: int) -> Tensor:
+        """Samples the conditioning variable from p1 (dataset).
+
+        Args:
+            - num_samples: the number of samples
+        Returns:
+            - x1: samples from p_data(x) (n_samples, dim).
+        """
+        return self.p1.sample(num_samples)
+
+    def sample_conditional_path(self, x1: Tensor, t: Tensor) -> Tensor:
+        """Samples the random variable X_t = (1-t)*X_0 + t X_1.
+
+        Args:
+            - x1: conditioning variable (num_samples, dim)
+            - t: time (num_samples, 1)
+
+        Returns:
+            - xt: the samples from p_t(x|x1), (num_Samples, dim)
+        """
+        num_samples = x1.shape[0]
+        x0 = self.p0.sample(num_samples)
+        return t * x0 + (1 - t) * x1
+
+    def conditional_vector_field(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
+        """Samples the conditional random vector field u_t=(x1-xt)/(1-t).
+
+        Args:
+            - xt: sample where we evaluate conditional_vector_field, (num_samples, dim)
+            - x1: conditioning variable (num_samples, dim)
+            - t: time (num_samples, 1)
+
+        Returns:
+            - conditional_vector_field: u_t(x|x1), (num_samples, dim)
+        """
+        # Derivation: using u_t(x|z)
+        # = (\dot{\alpha}_t - \dot{\beta_t}/\beta_t \alpha_t) z + \dot{\beta_t} / \beta_t x.
+        # We have alpha_t = t, beta_t = (1-t).
+        # \dot{alpha_t} = 1, \dot{beta_t} = -1.
+        # So, (1+t/(1-t))*x1 -1/(1-t)* xt
+        # Or: u_t = (x1-xt)/(1-t)
+        return (x1 - xt) / (1 - t)

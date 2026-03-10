@@ -379,6 +379,13 @@ def _(CheckerboardSampleable, SampleableDataset, device, plt):
 
 @app.cell
 def _():
+    # Linear Probability Paths
+
+    return
+
+
+@app.cell
+def _():
     return
 
 
