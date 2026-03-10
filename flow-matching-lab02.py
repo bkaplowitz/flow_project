@@ -9,6 +9,7 @@ def _():
     import marimo as mo  # noqa: F401
     import matplotlib.pyplot as plt
     import torch
+    from box import Box
 
     from flow_matching import (
         ConditionalVectorFieldODE,
@@ -17,16 +18,24 @@ def _():
         LinearAlpha,
         SquareRootBeta,
     )
-    from flow_matching.distributions import Gaussian, GaussianMixture
+    from flow_matching.distributions import (
+        CheckerboardSampleable,
+        Gaussian,
+        GaussianMixture,
+        SampleableDataset,
+    )
     from flow_matching.plot import imshow_density, plot_conditional_probability_path, plot_flow_path
 
     return (
+        Box,
+        CheckerboardSampleable,
         ConditionalVectorFieldODE,
         ConditionalVectorFieldSDE,
         Gaussian,
         GaussianConditionalProbabilityPath,
         GaussianMixture,
         LinearAlpha,
+        SampleableDataset,
         SquareRootBeta,
         imshow_density,
         mo,
@@ -52,6 +61,7 @@ def _(torch):
 
 @app.cell
 def _(Box, Gaussian, GaussianMixture, device, imshow_density, plt):
+
     _params = Box(
         {
             "scale": 15.0,
@@ -137,6 +147,7 @@ def _(plot_conditional_probability_path):
 
 @app.cell
 def _(
+    Box,
     ConditionalVectorFieldODE,
     Gaussian,
     GaussianConditionalProbabilityPath,
@@ -147,7 +158,6 @@ def _(
     plot_flow_path,
     torch,
 ):
-    from box import Box
 
     # Plot ODE flow
     params: Box = Box(
@@ -171,7 +181,7 @@ def _(
     conditional_vector_field_ode = ConditionalVectorFieldODE(path, x1)
     plot_flow_path(conditional_vector_field_ode, path, p_simple, p_data, x1, params)
 
-    return Box, p_data, p_simple, params, path, x1
+    return p_data, p_simple, params, path, x1
 
 
 @app.cell
@@ -337,6 +347,31 @@ def _(
     _x_bounds = (-scale, scale)
     _y_bounds = (-scale, scale)
     compare_score_from_learned_flow_learned_score(score_model, score_from_flow, params)
+    plt.show()
+
+    return
+
+
+@app.cell
+def _(CheckerboardSampleable, SampleableDataset, device, plt):
+    # Visualize samples
+    from flow_matching.plot import hist2d_sampleable
+
+    targets = {
+        "circles": SampleableDataset.Circle(device),
+        "moons": SampleableDataset.Moon(device, scale=3.5),
+        "checkerboard": CheckerboardSampleable(device, grid_size=4),
+    }
+    fig_sample, axs_samples = plt.subplots(1, len(targets), figsize=(6 * len(targets), 6))
+    _num_samples = 20_000
+    _num_bins = 100
+    for idx, (target_name, target) in enumerate(targets.items()):
+        ax = axs_samples[idx]
+        hist2d_sampleable(target, _num_samples, bins=_num_bins, scale=7.5, ax=ax)
+        ax.set_aspect("equal")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(f"Histogram of {target_name.capitalize()}")
     plt.show()
 
     return

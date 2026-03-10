@@ -189,11 +189,17 @@ def hist2d_samples(
 
 # Several plotting utility functions
 def hist2d_sampleable(
-    sampleable: Sampleable, num_samples: int, ax: Axes | None = None, **kwargs
+    sampleable: Sampleable,
+    num_samples: int,
+    ax: Axes | None = None,
+    bins: int = 200,
+    scale: float = 5.0,
+    percentile: int = 99,
+    **kwargs,
 ) -> None:
     ax = _get_ax(ax)
     samples = sampleable.sample(num_samples)  # (ns, 2)
-    ax.hist2d(samples[:, 0].cpu(), samples[:, 1].cpu(), **kwargs)
+    hist2d_samples(samples, ax, bins, scale, percentile, **kwargs)
 
 
 def scatter_sampleable(

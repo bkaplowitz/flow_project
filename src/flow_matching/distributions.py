@@ -144,7 +144,7 @@ class GaussianMixture(nn.Module, SampleableDensity):
 # Without densities
 
 
-class ConstructableSampleable(Sampleable):
+class SampleableDataset(Sampleable):
     """Implements sklearn make_moon, make_circles, and a checkerboard distribution."""
 
     def __init__(
@@ -198,7 +198,7 @@ class ConstructableSampleable(Sampleable):
         noise: float = 0.05,
         scale: float = 5.0,
         offset: Tensor | None = None,
-    ) -> "ConstructableSampleable":
+    ) -> "SampleableDataset":
         """Generates a sampleable instance with moons."""
         return cls(device, make_moons, noise, scale, offset)
 
@@ -210,7 +210,7 @@ class ConstructableSampleable(Sampleable):
         scale: float = 5.0,
         offset: Tensor | None = None,
         factor: float = 0.5,
-    ) -> "ConstructableSampleable":
+    ) -> "SampleableDataset":
         """Generates a sampleable instance with circles."""
         _make_circles = partial(make_circles, factor=factor)
         return cls(device, _make_circles, noise, scale, offset)

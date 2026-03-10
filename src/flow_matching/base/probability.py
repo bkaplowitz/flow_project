@@ -59,7 +59,7 @@ class Sampleable(ABC):
         pass
 
 
-class SampleableDensity(Sampleable, Density, ABC):
+class SampleableDensity(Sampleable, Density):
     """An  object that is both Sampleable and a Density."""
 
     def __init__(self):
