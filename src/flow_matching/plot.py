@@ -176,7 +176,10 @@ def hist2d_samples(
 ) -> None:
     ax = _get_ax(ax)
     H, xedges, yedges = np.histogram2d(
-        samples[:, 0], samples[:, 1], bins=bins, range=[[-scale, scale], [-scale, scale]]
+        samples[:, 0].detach().cpu(),
+        samples[:, 1].detach().cpu(),
+        bins=bins,
+        range=[[-scale, scale], [-scale, scale]],
     )
     cmax = np.percentile(H, percentile)
     cmin = 0.0
