@@ -11,18 +11,17 @@ def _():
     import torch
     from box import Box
 
-    from flow_matching import (
-        ConditionalVectorFieldODE,
-        ConditionalVectorFieldSDE,
-        GaussianConditionalProbabilityPath,
-        LinearAlpha,
-        SquareRootBeta,
-    )
     from flow_matching.distributions import (
         CheckerboardSampleable,
         Gaussian,
         GaussianMixture,
         SampleableDataset,
+    )
+    from flow_matching.flows import ConditionalVectorFieldODE, ConditionalVectorFieldSDE
+    from flow_matching.paths import (
+        GaussianConditionalProbabilityPath,
+        LinearAlpha,
+        SquareRootBeta,
     )
     from flow_matching.plot import imshow_density, plot_conditional_probability_path, plot_flow_path
 
@@ -61,7 +60,6 @@ def _(torch):
 
 @app.cell
 def _(Box, Gaussian, GaussianMixture, device, imshow_density, plt):
-
     _params = Box(
         {
             "scale": 15.0,
@@ -134,13 +132,26 @@ def _(Box, Gaussian, GaussianMixture, device, imshow_density, plt):
     )
     plt.show()
 
-    return
+    return (p1,)
 
 
 @app.cell
-def _(plot_conditional_probability_path):
-
-    plot_conditional_probability_path()
+def _(
+    GaussianConditionalProbabilityPath,
+    LinearAlpha,
+    SquareRootBeta,
+    device,
+    p1,
+    plot_conditional_probability_path,
+):
+    alpha_gaussian = LinearAlpha()
+    beta_gaussian = SquareRootBeta()
+    path_gaussian = GaussianConditionalProbabilityPath(
+        p1=p1,
+        alpha=alpha_gaussian,
+        beta=beta_gaussian,
+    ).to(device)
+    plot_conditional_probability_path(path_gaussian)
 
     return
 
@@ -158,7 +169,6 @@ def _(
     plot_flow_path,
     torch,
 ):
-
     # Plot ODE flow
     params: Box = Box(
         {
@@ -378,14 +388,94 @@ def _(CheckerboardSampleable, SampleableDataset, device, plt):
 
 
 @app.cell
-def _():
-    # Linear Probability Paths
+def _(
+    CheckerboardSampleable,
+    ConditionalVectorFieldODE,
+    Gaussian,
+    device,
+    plt,
+    torch,
+):
 
-    return
+    from flow_matching import EulerSimulator
+    from flow_matching.paths import LinearConditionalProbabilityPath
+    from flow_matching.plot import every_nth_index, hist2d_samples
 
+    linear_path = LinearConditionalProbabilityPath(
+        p0=Gaussian.isotropic(dim=2, std=1.0), p1=CheckerboardSampleable(device, grid_size=4)
+    ).to(device)
 
-@app.cell
-def _():
+    def plot_linear_model(path: LinearConditionalProbabilityPath):
+        alpha = 1.0
+        bins = 300
+        num_samples: int = 100_000
+        num_timesteps = 500
+        num_marginals = 5
+        assert num_timesteps % (num_marginals - 1) == 0
+        scale = 6.0
+        fig, axs = plt.subplots(3, num_marginals, figsize=(6 * num_marginals, 6 * 3))
+        axs = axs.reshape(3, num_marginals)
+        # Sets for all subplots at once. Can also iter through.
+        plt.setp(axs, xticks=[], yticks=[], xlim=(-scale, scale), ylim=(-scale, scale))
+        p1 = path.p1
+        ts = torch.linspace(0.0, 1.0, num_marginals).to(device)
+        # Graph conditional probability path
+        ts = torch.linspace(0, 1, num_timesteps)
+        for idx, t in enumerate(ts):
+            p1_expanded = p1.expand(num_samples, -1)
+            t_expanded = t.view(1, 1).expand(num_samples, 1)
+            xts = path.sample_conditional_path(p1_expanded, t_expanded)
+            percentile = min(99 + 2 * torch.sin(t).item(), 100)
+            axs[0, idx].set_title(f"{t.item():.2f}", fontsize=15)
+        axs[0, 0].set_ylabel("Conditional (from Ground-Truth)", fontsize=20)
+        # Plot p1
+        axs[0, -1].scatter(
+            p1[:, 0].cpu(), p1[:, 1].cpu(), marker="*", color="red", s=200, lablel="p1", zorder=20
+        )
+        axs[0, -1].legend()
+        # Graph conditional vector fields
+        ode = ConditionalVectorFieldODE(path, p1)
+        simulator = EulerSimulator(ode)
+        ts = torch.linspace(0, 1, num_timesteps).to(device)
+        every_nth_idx = every_nth_index(len(ts), len(ts) // (num_marginals - 1))
+        x0 = path.p0.sample(num_samples)
+        xts = simulator.simulate(x0, ts)
+        xts = xts[:, every_nth_idx, :]
+        for idx in range(xts.shape[1]):
+            x_expanded = xts[:, idx, :]
+            t_expanded = ts[every_nth_idx[idx]]
+            percentile = min(99 + torch.sin(t_expanded).item(), 100)
+            hist2d_samples(
+                samples=x_expanded.cpu(),
+                ax=axs[1, idx],
+                bins=bins,
+                scale=scale,
+                percentile=percentile,
+                alpha=alpha,
+            )
+            axs[1, idx].set_title(f"$t={t.item():.2f}$", fontsize=15)
+        axs[1, 0].set_ylabel("Conditional (from ODE)", fontsize=20)
+        # Plot p1
+        axs[1, -1].scatter(
+            p1[:, 0].cpu(), p1[:, 1].cpu(), marker="*", color="red", s=200, label="z", zorder=20
+        )
+        axs[1, -1].legend()
+
+        # Graph conditional prob paths using sample_marginal_paths
+        ts = torch.linspace(0.0, 1.0, num_marginals).to(device)
+        for idx, t in enumerate(ts):
+            p1_expanded = p1.expand(num_samples, -1)
+            t_expanded = t.view(1, 1).expand(num_samples, 1)
+            xts = path.sample_marginal_path(t_expanded)
+            hist2d_samples(
+                samples=xts.cpu(), ax=axs[2, idx], bins=300, scale=scale, percentile=99, alpha=1.0
+            )
+            axs[2, idx].set_title(f"$t={t.item():.2f}$", fontsize=15)
+        axs[2, 0].set_ylabel("Marginal", fontsize=20)
+        plt.show()
+
+    plot_linear_model(linear_path)
+
     return
 
 

@@ -15,7 +15,8 @@ from matplotlib.colors import Colormap
 from torch import Tensor
 
 from flow_matching.base.dynamics import ODE, SDE
-from flow_matching.distributions import Gaussian, GaussianMixture
+from flow_matching.base.paths import ConditionalProbabilityPath
+from flow_matching.distributions import GaussianMixture
 from flow_matching.models import MLPScore, ScoreFromVectorField
 from flow_matching.paths import GaussianConditionalProbabilityPath, LinearAlpha, SquareRootBeta
 from flow_matching.simulator import EulerMaruyamaSimulator, EulerSimulator
@@ -43,22 +44,48 @@ def _get_ax(ax: Axes | None = None) -> Axes:
     return ax
 
 
-def _get_scale_or_bounds(
+def _get_bounds(
+    scale: float | None = None,
+    x_bounds: tuple[float, float] | None = None,
+    y_bounds: tuple[float, float] | None = None,
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    """Checks if x_bounds and y_bounds are provided.
+
+    Replaces any missing with (-scale, scale) if scale provided, else throws error.
+
+    Args:
+        - scale: optional scale parameter
+        - x_bounds: optional predefined bounds for x.
+        - y_bounds: optional predefined bounds for y.
+
+    Returns:
+        - x_bounds, y_bounds, tuple with non-None x_bounds and y_bounds.
+    """
+    if scale is None and (x_bounds is None or y_bounds is None):
+        raise ValueError("Either scale or x_bounds and y_bounds must be provided.")
+    # scale is not None or (x_bounds is not None and y_bounds is not None)
+    if scale is None:
+        # Guard clause
+        if x_bounds is None or y_bounds is None:
+            raise ValueError("Either scale or both x_bounds and y_bounds must be provided.")
+        return x_bounds, y_bounds
+    # If scale is not None, prefer x_bound or y_bound if provided, fall back to (-scale, scale)
+    x_bounds = x_bounds if x_bounds is not None else (-scale, scale)
+    y_bounds = y_bounds if y_bounds is not None else (-scale, scale)
+    return x_bounds, y_bounds
+
+
+def _get_scale_or_bounds_with_xy(
     bins: int,
     scale: float | None = None,
     x_bounds: tuple[float, float] | None = None,
     y_bounds: tuple[float, float] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, tuple[float, float, float, float]]:
-    if scale is not None:
-        x = torch.linspace(-scale, scale, bins).to(device)
-        y = torch.linspace(-scale, scale, bins).to(device)
-        extent = (-scale, scale, -scale, scale)
-    elif x_bounds is not None and y_bounds is not None:
-        x = torch.linspace(*x_bounds, bins).to(device)
-        y = torch.linspace(*y_bounds, bins).to(device)
-        extent = (x_bounds[0], x_bounds[1], y_bounds[0], y_bounds[1])
-    else:
-        raise ValueError("Either scale or x_bounds and y_bounds have to be defined.")
+    """Returns an extent variable consisting of x_bounds,y_bounds as a 4-tuple, and grid for x,y."""
+    x_bounds, y_bounds = _get_bounds(scale, x_bounds, y_bounds)
+    x = torch.linspace(*x_bounds, bins).to(device)
+    y = torch.linspace(*y_bounds, bins).to(device)
+    extent = (x_bounds[0], x_bounds[1], y_bounds[0], y_bounds[1])
     return x, y, extent
 
 
@@ -170,16 +197,19 @@ def hist2d_samples(
     samples: Tensor,
     ax: Axes | None = None,
     bins: int = 200,
-    scale: float = 5.0,
+    scale: float | None = None,
+    x_bounds: tuple[float, float] | None = None,
+    y_bounds: tuple[float, float] | None = None,
     percentile: int = 99,
     **kwargs,
 ) -> None:
     ax = _get_ax(ax)
+    x_bounds, y_bounds = _get_bounds(scale, x_bounds, y_bounds)
     H, xedges, yedges = np.histogram2d(
         samples[:, 0].detach().cpu(),
         samples[:, 1].detach().cpu(),
         bins=bins,
-        range=[[-scale, scale], [-scale, scale]],
+        range=[x_bounds, y_bounds],
     )
     cmax = np.percentile(H, percentile)
     cmin = 0.0
@@ -196,13 +226,16 @@ def hist2d_sampleable(
     num_samples: int,
     ax: Axes | None = None,
     bins: int = 200,
-    scale: float = 5.0,
+    scale: float | None = None,
+    x_bounds: tuple[float, float] | None = None,
+    y_bounds: tuple[float, float] | None = None,
     percentile: int = 99,
     **kwargs,
 ) -> None:
     ax = _get_ax(ax)
+
     samples = sampleable.sample(num_samples)  # (ns, 2)
-    hist2d_samples(samples, ax, bins, scale, percentile, **kwargs)
+    hist2d_samples(samples, ax, bins, scale, x_bounds, y_bounds, percentile, **kwargs)
 
 
 def scatter_sampleable(
@@ -237,7 +270,9 @@ def imshow_density(
     **kwargs,
 ):
     ax = _get_ax(ax)
-    x, y, extent = _get_scale_or_bounds(bins, scale=scale, x_bounds=x_bounds, y_bounds=y_bounds)
+    x, y, extent = _get_scale_or_bounds_with_xy(
+        bins, scale=scale, x_bounds=x_bounds, y_bounds=y_bounds
+    )
     X, Y = torch.meshgrid(x, y)
     xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
     density_val = density.log_density(xy).reshape(bins, bins).T
@@ -254,7 +289,9 @@ def contour_density(
     **kwargs,
 ):
     ax = _get_ax(ax)
-    x, y, extent = _get_scale_or_bounds(bins, scale=scale, x_bounds=x_bounds, y_bounds=y_bounds)
+    x, y, extent = _get_scale_or_bounds_with_xy(
+        bins, scale=scale, x_bounds=x_bounds, y_bounds=y_bounds
+    )
     X, Y = torch.meshgrid(x, y)
     xy = torch.stack([X.reshape(-1), Y.reshape(-1)], dim=-1)
     density_val = density.log_density(xy).reshape(bins, bins).T
@@ -477,20 +514,52 @@ def plot_source_sample_densities(
     )
 
 
-def plot_conditional_probability_path() -> None:
-    # Construct conditional probability path
+def plot_density(
+    dist: Sampleable | Density,
+    ax: Axes | None = None,
+    bins: int = 200,
+    num_samples: int | None = None,
+    scale: float | None = None,
+    x_bounds: tuple[float, float] | None = None,
+    y_bounds: tuple[float, float] | None = None,
+    **kwargs,
+):
+    """Plots the density for dist either that has analytic density or is sampleable."""
+    if isinstance(dist, Density):
+        imshow_density(
+            density=dist,
+            x_bounds=x_bounds,
+            y_bounds=y_bounds,
+            bins=bins,
+            **kwargs,
+        )
+    else:
+        if num_samples is None:
+            raise ValueError(
+                "If dist is subclass Sampleable and has no density, num_samples must be provided."
+            )
+        hist2d_sampleable(
+            dist,
+            num_samples=num_samples,
+            ax=ax,
+            bins=bins,
+            scale=scale,
+            x_bounds=x_bounds,
+            y_bounds=y_bounds,
+            **kwargs,
+        )
+
+
+def plot_conditional_probability_path(
+    path: ConditionalProbabilityPath[Sampleable | Density, Sampleable | Density],
+    num_samples: int = 20_000,
+    bins: int = 200,
+) -> None:
+    """Plot conditional probability path."""
     _params = Box({"scale": 15.0, "target_scale": 10.0, "target_std": 1.0})
-    bins = 200
-    p0 = Gaussian.isotropic(dim=2, std=1.0).to(device)
-    p1 = GaussianMixture.symmetric_2D(
-        nmodes=5, std=_params.target_std, scale=_params.target_scale
-    ).to(device)
     # Construct conditional probability path
-    path = GaussianConditionalProbabilityPath(
-        p1=p1,
-        alpha=LinearAlpha(),
-        beta=SquareRootBeta(),
-    ).to(device)
+    p0 = path.p0
+    p1 = path.p1
 
     scale = _params.scale
     x_bounds = (-scale, scale)
@@ -502,24 +571,19 @@ def plot_conditional_probability_path() -> None:
     plt.title("Gaussian Conditional Probability Path")
 
     # Plot source and target
-    imshow_density(
-        density=p0,
-        x_bounds=x_bounds,
-        y_bounds=y_bounds,
-        bins=bins,
-        vmin=-10,
-        alpha=0.25,
-        cmap=plt.get_cmap("Reds"),
-    )
-    imshow_density(
-        density=p1,
-        x_bounds=x_bounds,
-        y_bounds=y_bounds,
-        bins=bins,
-        vmin=-10,
-        alpha=0.25,
-        cmap=plt.get_cmap("Blues"),
-    )
+    for dist in [p0, p1]:
+        plot_density(
+            dist,
+            ax=plt.gca(),
+            bins=bins,
+            num_samples=num_samples,
+            scale=scale,
+            x_bounds=x_bounds,
+            y_bounds=y_bounds,
+            vmin=-10,
+            alpha=0.25,
+            cmap=plt.get_cmap("Reds"),
+        )
 
     # Sample conditioning variable x1 ~ p1 (a single data point)
     x1 = path.sample_conditioning_variable(1)  # (1,2)
@@ -720,7 +784,7 @@ def plot_marginal_flow_path(
             alpha=0.5,
             color="black",
         )
-    ax.legend(prop={"size": legendsize}, loc="upper right", markerscale=markerscale)
+    # ax.legend(prop={"size": legendsize}, loc="upper right", markerscale=markerscale)
     #########################################
     # Graph Ground-truth probability path   #
     #########################################
