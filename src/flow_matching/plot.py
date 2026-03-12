@@ -16,6 +16,7 @@ from torch import Tensor
 
 from flow_matching.base.dynamics import ODE, SDE
 from flow_matching.base.paths import ConditionalProbabilityPath
+from flow_matching.base.probability import Density, Sampleable
 from flow_matching.distributions import GaussianMixture
 from flow_matching.models import MLPScore, ScoreFromVectorField
 from flow_matching.paths import GaussianConditionalProbabilityPath, LinearAlpha, SquareRootBeta
@@ -24,7 +25,6 @@ from flow_matching.simulator import EulerMaruyamaSimulator, EulerSimulator
 if TYPE_CHECKING:
     from matplotlib.axes._axes import Axes
 
-    from flow_matching.base.probability import Density, Sampleable
     from flow_matching.base.simulator import Simulator
 
 BLUES_CMAP: Colormap = plt.get_cmap("Blues")
@@ -229,7 +229,7 @@ def hist2d_sampleable(
     scale: float | None = None,
     x_bounds: tuple[float, float] | None = None,
     y_bounds: tuple[float, float] | None = None,
-    percentile: int = 99,
+    percentile: int | float = 99,
     **kwargs,
 ) -> None:
     ax = _get_ax(ax)
