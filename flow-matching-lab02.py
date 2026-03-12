@@ -438,7 +438,9 @@ def _(
         ts = torch.linspace(0, 1, num_timesteps).to(device)
         every_nth_idx = every_nth_index(len(ts), len(ts) // (num_marginals - 1))
         x0 = path.p0.sample(num_samples).to(device)
-        xts = simulator.simulate_with_trajectory(x0, ts.view(1, -1, 1).expand(num_samples, -1, 1))
+        xts = simulator.batch_simulate_with_trajectory(
+            x0, ts.view(1, -1, 1).expand(num_samples, -1, 1)
+        )
         xts = xts[:, every_nth_idx, :]
         for idx in range(xts.shape[1]):
             x_expanded = xts[:, idx, :]
