@@ -3,12 +3,13 @@
 import torch
 from torch import Tensor
 
-from flow_matching.base.paths import Alpha, Beta, ConditionalProbabilityPath, SampleableDensity
+from flow_matching.base.paths import Alpha, Beta, ConditionalProbabilityPath
+from flow_matching.base.probability import Sampleable, SampleableDensity
 from flow_matching.distributions import Gaussian
 
 
 class LinearAlpha(Alpha):
-    """Alpha_t =t."""
+    """Alpha_t = t."""
 
     def __call__(self, t: Tensor) -> Tensor:
         return t
@@ -18,7 +19,7 @@ class LinearAlpha(Alpha):
 
 
 class SquareRootBeta(Beta):
-    r"""Beta_t = \\sqrt{1-t}."""
+    r"""Beta_t = \sqrt{1-t}."""
 
     def __call__(self, t: Tensor) -> Tensor:
         return torch.sqrt(1 - t)
@@ -88,7 +89,7 @@ class GaussianConditionalProbabilityPath(ConditionalProbabilityPath):
 
 
 class LinearConditionalProbabilityPath(ConditionalProbabilityPath):
-    def __init__(self, p0: SampleableDensity, p1: SampleableDensity):
+    def __init__(self, p0: Sampleable, p1: Sampleable):
         super().__init__(p0, p1)
 
     def sample_conditioning_variable(self, num_samples: int) -> Tensor:

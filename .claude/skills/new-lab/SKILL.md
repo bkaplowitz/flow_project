@@ -17,7 +17,7 @@ Create a new marimo lab notebook following the pattern in existing labs.
 4. **Code cells**: Use `@app.cell` decorators, each cell should be self-contained with explicit parameter dependencies
 
 ## Import conventions
-- Use flat API imports: `from flow_matching import Gaussian, GaussianMixture, EulerSimulator, ...`
+- Use full path of API imports: `from flow_matching.distributions import Gaussian,  ...`
 - Import marimo as `import marimo as mo`
 - Standard scientific stack: `import torch`, `import numpy as np`, `import matplotlib.pyplot as plt`
 

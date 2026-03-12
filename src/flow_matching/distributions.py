@@ -9,8 +9,7 @@ import torch.distributions as D
 from sklearn.datasets import make_circles, make_moons
 from torch import Tensor, nn
 
-from flow_matching.base.paths import SampleableDensity
-from flow_matching.base.probability import Sampleable
+from flow_matching.base.probability import Sampleable, SampleableDensity
 
 
 class Gaussian(nn.Module, SampleableDensity):
@@ -57,7 +56,7 @@ class Gaussian(nn.Module, SampleableDensity):
         return self.distribution.log_prob(x).view(-1, 1)
 
     @classmethod
-    def isotropic(cls, dim: int, std: float) -> "Gaussian":
+    def isotropic(cls, dim: int, std: float = 1.0) -> "Gaussian":
         """Constructs an isotropic gaussian of dim `dim` and std `std`."""
         mean = torch.zeros(dim)
         cov = torch.eye(dim) * std**2

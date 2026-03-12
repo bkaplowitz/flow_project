@@ -19,9 +19,9 @@ def make_mlp(dims: list[int], activation: type[nn.Module] = nn.SiLU) -> nn.Seque
 class MLPVectorField(nn.Module):
     r"""A learnable MLP vector field of some corruption process $u_t^{ref}$.
 
-    Represented by $u_t^{\theta}(x).
+    Represented by $u_t^{\theta}(x)$.
 
-    Takes in (x, t) and returns the estimated marginal vector field at that point.
+    Takes in $(x, t)$ and returns the estimated marginal vector field at that point.
 
     Uses a MLP architecture with data dim `dim` and hidden dims `hidden_dims`.
     """
@@ -87,7 +87,7 @@ class ScoreFromVectorField(nn.Module):
         self.beta = beta
 
     def forward(self, x: Tensor, t: Tensor) -> Tensor:
-        r"""Uses fact for Gaussian models $\grad\log p^{ref}_t(x)=\frac{u_t^{ref}(x - a_t x)}{b_t}$.
+        r"""Uses fact for Gaussian models $\nabla\log p^{ref}_t(x)=\frac{u_t^{ref}(x-a_t x)}{b_t}$.
 
         For Gaussian models:
 

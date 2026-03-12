@@ -9,13 +9,11 @@ from abc import ABC, abstractmethod
 import torch
 from torch import Tensor, nn
 
-from .probability import SampleableDensity
 
-
-class ConditionalProbabilityPath(nn.Module, ABC):
+class ConditionalProbabilityPath[T0, T1](nn.Module, ABC):
     """Abstract base class for conditional probability paths."""
 
-    def __init__(self, p0: SampleableDensity, p1: SampleableDensity) -> None:
+    def __init__(self, p0: T0, p1: T1) -> None:
         super().__init__()
         self.p0 = p0
         self.p1 = p1
@@ -68,7 +66,7 @@ class ConditionalProbabilityPath(nn.Module, ABC):
             t: time (num_samples, 1)
 
         Returns:
-            conditional_score: conditional score $\\grad_{x} \\log(p_t(x|x1))$. (num_samples, dim)
+            conditional_score: conditional score $\nabla_{x} \log(p_t(x|x1))$. (num_samples, dim)
         """
         pass
 
@@ -124,12 +122,12 @@ class Alpha(ABC):
             t: time (num_samples, 1).
 
         Returns:
-            alpha_t (num_samples, 1)
+           alpha_t (num_samples, 1)
         """
         pass
 
     def dt(self, t: Tensor) -> Tensor:
-        """Evaluates d/dt alpha_t.
+        r"""Evaluates d/dt alpha_t.
 
         Args:
             t: time (num_samples, 1).

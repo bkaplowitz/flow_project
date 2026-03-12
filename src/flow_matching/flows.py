@@ -37,9 +37,9 @@ class ConditionalVectorFieldODE(ODE):
 class ConditionalVectorFieldSDE(SDE):
     r"""Construct a Langevin of associated conditional probability path.
 
-    Langevin is relaed to score $score(X_t) = \grad_x log p_t(X_t|x1)$ and given by:
+    Langevin is relaed to score $score(X_t) = \nabla_x log p_t(X_t|x1)$ and given by:
 
-    $dX_t = [u_t(X_t|x1) +1/2 sigma^2_t \grad_x log p_t(X_t|x1)]dt + \sigma dW_t$.
+    $dX_t = [u_t(X_t|x1) +1/2 sigma^2_t \nabla_x log p_t(X_t|x1)]dt + \sigma dW_t$.
 
     Args:
         path: The conditional probability path object that this is the vector field of.
@@ -47,6 +47,7 @@ class ConditionalVectorFieldSDE(SDE):
     """
 
     def __init__(self, path: ConditionalProbabilityPath, x1: Tensor, sigma: float):
+
         self.path = path
         self.x1 = x1
         self.sigma = sigma

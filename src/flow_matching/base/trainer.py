@@ -13,6 +13,8 @@ class TrainKwargs(TypedDict, total=False):
 
 
 class Trainer(ABC):
+    """A base class for trainers implementing training methods."""
+
     def __init__(self, model: nn.Module):
         """Given a model, store trainer wrapper to run training.
 
@@ -24,6 +26,7 @@ class Trainer(ABC):
 
     @abstractmethod
     def get_train_loss(self, **kwargs: Unpack[TrainKwargs]) -> Tensor:
+        """Gets the training loss and returns it as a scalar."""
         pass
 
     def get_optimizer(self, lr: float):
