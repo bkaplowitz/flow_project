@@ -417,10 +417,9 @@ def _(
         axs = axs.reshape(3, num_marginals)
         # Sets for all subplots at once. Can also iter through.
         plt.setp(axs, xticks=[], yticks=[], xlim=(-scale, scale), ylim=(-scale, scale))
-        p1 = path.p1.sample(1)  # (1,2)
+        p1 = path.p1.sample(1).to(device)  # (1,2)
         ts = torch.linspace(0.0, 1.0, num_marginals).to(device)
         # Graph conditional probability path
-        ts = torch.linspace(0, 1, num_timesteps)
         for idx, t in enumerate(ts):
             p1_expanded = p1.expand(num_samples, -1)
             t_expanded = t.view(1, 1).expand(num_samples, 1)
@@ -430,7 +429,7 @@ def _(
         axs[0, 0].set_ylabel("Conditional (from Ground-Truth)", fontsize=20)
         # Plot p1
         axs[0, -1].scatter(
-            p1[:, 0].cpu(), p1[:, 1].cpu(), marker="*", color="red", s=200, lablel="p1", zorder=20
+            p1[:, 0].cpu(), p1[:, 1].cpu(), marker="*", color="red", s=200, label="p1", zorder=20
         )
         axs[0, -1].legend()
         # Graph conditional vector fields
@@ -438,8 +437,8 @@ def _(
         simulator = EulerSimulator(ode)
         ts = torch.linspace(0, 1, num_timesteps).to(device)
         every_nth_idx = every_nth_index(len(ts), len(ts) // (num_marginals - 1))
-        x0 = path.p0.sample(num_samples)
-        xts = simulator.simulate(x0, ts)
+        x0 = path.p0.sample(num_samples).to(device)
+        xts = simulator.simulate_with_trajectory(x0, ts.view(1, -1, 1).expand(num_samples, -1, 1))
         xts = xts[:, every_nth_idx, :]
         for idx in range(xts.shape[1]):
             x_expanded = xts[:, idx, :]

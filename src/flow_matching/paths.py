@@ -113,7 +113,7 @@ class LinearConditionalProbabilityPath(ConditionalProbabilityPath):
             - xt: the samples from p_t(x|x1), (num_Samples, dim)
         """
         num_samples = x1.shape[0]
-        x0 = self.p0.sample(num_samples)
+        x0 = self.p0.sample(num_samples).to(x1.device)
         return t * x0 + (1 - t) * x1
 
     def conditional_vector_field(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
