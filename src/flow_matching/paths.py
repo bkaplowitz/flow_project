@@ -134,3 +134,9 @@ class LinearConditionalProbabilityPath(ConditionalProbabilityPath):
         # So, (1+t/(1-t))*x1 -1/(1-t)* xt
         # Or: u_t = (x1-xt)/(1-t)
         return (x1 - xt) / (1 - t)
+
+    def conditional_score(
+        self, xt: torch.Tensor, x1: torch.Tensor, t: torch.Tensor
+    ) -> torch.Tensor:
+        """Not known for Linear Conditional Probability Paths."""
+        raise Exception("You should not be calling this function!")

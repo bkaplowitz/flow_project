@@ -417,7 +417,7 @@ def _(
         axs = axs.reshape(3, num_marginals)
         # Sets for all subplots at once. Can also iter through.
         plt.setp(axs, xticks=[], yticks=[], xlim=(-scale, scale), ylim=(-scale, scale))
-        p1 = path.p1
+        p1 = path.p1.sample(1)  # (1,2)
         ts = torch.linspace(0.0, 1.0, num_marginals).to(device)
         # Graph conditional probability path
         ts = torch.linspace(0, 1, num_timesteps)

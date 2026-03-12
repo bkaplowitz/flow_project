@@ -143,7 +143,7 @@ class GaussianMixture(nn.Module, SampleableDensity):
 # Without densities
 
 
-class SampleableDataset(Sampleable):
+class SampleableDataset(Sampleable, nn.Module):
     """Implements sklearn make_moon, make_circles, and a checkerboard distribution."""
 
     def __init__(
@@ -215,7 +215,7 @@ class SampleableDataset(Sampleable):
         return cls(device, _make_circles, noise, scale, offset)
 
 
-class CheckerboardSampleable(Sampleable):
+class CheckerboardSampleable(Sampleable, nn.Module):
     def __init__(self, device: torch.device, grid_size: int = 3, scale: float = 5.0):
         """Initializes a sampleable checkerboard dataset.
 
