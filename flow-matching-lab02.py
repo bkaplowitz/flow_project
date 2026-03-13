@@ -242,7 +242,14 @@ def _(
     trainer = ConditionalFlowMatchingTrainer(path=path_flow, model=flow_model)
     epochs, losses = trainer.train(num_epochs=5000, device=device, lr=1e-3, batch_size=1000)
 
-    return epochs, flow_model, losses, path_flow
+    return (
+        ConditionalFlowMatchingTrainer,
+        MLPVectorField,
+        epochs,
+        flow_model,
+        losses,
+        path_flow,
+    )
 
 
 @app.cell
@@ -271,7 +278,7 @@ def _(
     learned_cond_vector_field = LearnedVectorFieldODE(flow_model)
     plot_marginal_flow_path(learned_cond_vector_field, path_flow, p_simple, p_data, x1, params)
 
-    return (plot_marginal_flow_path,)
+    return LearnedVectorFieldODE, plot_marginal_flow_path
 
 
 @app.cell
@@ -476,6 +483,117 @@ def _(
         plt.show()
 
     plot_linear_model(linear_path)
+
+    return (
+        EulerSimulator,
+        LinearConditionalProbabilityPath,
+        every_nth_index,
+        hist2d_samples,
+    )
+
+
+@app.cell
+def _(
+    CheckerboardSampleable,
+    ConditionalFlowMatchingTrainer,
+    Gaussian,
+    LinearConditionalProbabilityPath,
+    MLPVectorField,
+    device,
+):
+    # FIXME!!!
+    linear_path_conditional = LinearConditionalProbabilityPath(
+        p0=Gaussian.isotropic(dim=2, std=1.0), p1=CheckerboardSampleable(device, grid_size=4)
+    ).to(device)
+    linear_flow_model = MLPVectorField(dim=2, hidden_dims=[64, 64, 64, 64])
+    linear_trainer = ConditionalFlowMatchingTrainer(
+        linear_path_conditional, model=linear_flow_model
+    )
+    _losses_linear = linear_trainer.train(
+        num_epochs=10_000, device=device, lr=1e-4, batch_size=2_000
+    )
+
+    return (linear_flow_model,)
+
+
+@app.cell
+def _(
+    EulerSimulator,
+    LearnedVectorFieldODE,
+    device,
+    every_nth_index,
+    hist2d_samples,
+    linear_flow_model,
+    path,
+    plt,
+    torch,
+):
+    # FIXME !!!!
+    def plot_fn():
+        ##########################
+        # Play around With These #
+        ##########################
+        num_samples = 50000
+        num_marginals = 5
+
+        ##############
+        # Setup Plots #
+        ##############
+
+        fig, axes = plt.subplots(2, num_marginals, figsize=(6 * num_marginals, 6 * 2))
+        axes = axes.reshape(2, num_marginals)
+        scale = 6.0
+
+        ###########################
+        # Graph Ground-Truth Marginals #
+        ###########################
+        ts = torch.linspace(0.0, 1.0, num_marginals).to(device)
+        for idx, t in enumerate(ts):
+            tt = t.view(1, 1).expand(num_samples, 1)
+            xts = path.sample_marginal_path(tt)
+            hist2d_samples(
+                samples=xts.cpu(), ax=axes[0, idx], bins=200, scale=scale, percentile=99, alpha=1.0
+            )
+            axes[0, idx].set_xlim(-scale, scale)
+            axes[0, idx].set_ylim(-scale, scale)
+            axes[0, idx].set_xticks([])
+            axes[0, idx].set_yticks([])
+            axes[0, idx].set_title(f"$t={t.item():.2f}$", fontsize=15)
+        axes[0, 0].set_ylabel("Ground Truth", fontsize=20)
+
+        ###############################################
+        # Graph Marginals of Learned Vector Field #
+        ###############################################
+        ode = LearnedVectorFieldODE(linear_flow_model)
+        simulator = EulerSimulator(ode)
+        ts = torch.linspace(0, 1, 100).to(device)
+        record_every_idxs = every_nth_index(len(ts), len(ts) // (num_marginals - 1))
+        x0 = path.p0.sample(num_samples).to(device)
+        xts = simulator.batch_simulate_with_trajectory(
+            x0, ts.view(1, -1, 1).expand(num_samples, -1, 1)
+        )
+        xts = xts[:, record_every_idxs, :]
+        for idx in range(xts.shape[1]):
+            xx = xts[:, idx, :]
+            hist2d_samples(
+                samples=xx.detach().cpu(),
+                ax=axes[1, idx],
+                bins=200,
+                scale=scale,
+                percentile=99,
+                alpha=1.0,
+            )
+            axes[1, idx].set_xlim(-scale, scale)
+            axes[1, idx].set_ylim(-scale, scale)
+            axes[1, idx].set_xticks([])
+            axes[1, idx].set_yticks([])
+            tt = ts[record_every_idxs[idx]]
+            axes[1, idx].set_title(f"$t={tt.item():.2f}$", fontsize=15)
+        axes[1, 0].set_ylabel("Learned", fontsize=20)
+
+        plt.show()
+
+    plot_fn()
 
     return
 
