@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import torch
 from torch import Tensor
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 # from tqdm.gui import tqdm_gui
 from flow_matching.base.dynamics import ODE, SDE

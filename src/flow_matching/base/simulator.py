@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import torch
 from torch import Tensor
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 class Simulator(ABC):

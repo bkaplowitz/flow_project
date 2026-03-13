@@ -5,7 +5,7 @@ from typing import TypedDict, Unpack
 
 import torch
 from torch import Tensor, nn
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 class TrainKwargs(TypedDict, total=False):
