@@ -54,6 +54,7 @@ def _(torch):
         if torch.backends.mps.is_available()
         else "cpu"
     )
+
     return (device,)
 
 
@@ -130,6 +131,7 @@ def _(Box, Gaussian, GaussianMixture, device, imshow_density, plt):
         cmap=plt.get_cmap("Blues"),
     )
     plt.show()
+
     return (p1,)
 
 
@@ -150,6 +152,7 @@ def _(
         beta=beta_gaussian,
     ).to(device)
     plot_conditional_probability_path(path_gaussian)
+
     return
 
 
@@ -187,6 +190,7 @@ def _(
     x1: torch.Tensor = path.sample_conditioning_variable(1)
     conditional_vector_field_ode = ConditionalVectorFieldODE(path, x1)
     plot_flow_path(conditional_vector_field_ode, path, p_simple, p_data, x1, params)
+
     return p_data, p_simple, params, path, x1
 
 
@@ -202,6 +206,7 @@ def _(
 ):
     conditional_vector_field_sde = ConditionalVectorFieldSDE(path, x1, sigma=params.sigma)
     plot_flow_path(conditional_vector_field_sde, path, p_simple, p_data, x1, params)
+
     return
 
 
@@ -236,6 +241,7 @@ def _(
     flow_model.compile()
     trainer = ConditionalFlowMatchingTrainer(path=path_flow, model=flow_model)
     epochs, losses = trainer.train(num_epochs=5000, device=device, lr=1e-3, batch_size=1000)
+
     return (
         ConditionalFlowMatchingTrainer,
         MLPVectorField,
@@ -253,6 +259,7 @@ def _(epochs, losses, plt, torch):
         torch.stack(losses).detach().cpu().numpy(),
     )
     plt.show()
+
     return
 
 
@@ -270,6 +277,7 @@ def _(
 
     learned_cond_vector_field = LearnedVectorFieldODE(flow_model)
     plot_marginal_flow_path(learned_cond_vector_field, path_flow, p_simple, p_data, x1, params)
+
     return LearnedVectorFieldODE, plot_marginal_flow_path
 
 
@@ -301,6 +309,7 @@ def _(
     epochs_score, losses_score = score_trainer.train(
         num_epochs=2000, device=device, lr=1e-3, batch_size=1000
     )
+
     return (
         epochs_score,
         losses_score,
@@ -314,6 +323,7 @@ def _(
 @app.cell
 def _(epochs_score, losses_score, plt, torch):
     plt.semilogy(epochs_score, torch.stack(losses_score).detach().cpu().numpy())
+
     return
 
 
@@ -332,6 +342,7 @@ def _(
 
     learned_cond_score = LangevinFlowSDE(flow_model, score_model, sigma=2.0)
     plot_marginal_flow_path(learned_cond_score, path_score, p0_score, p_data_score, x1, params)
+
     return
 
 
@@ -354,6 +365,7 @@ def _(
     _y_bounds = (-scale, scale)
     compare_score_from_learned_flow_learned_score(score_model, score_from_flow, params)
     plt.show()
+
     return
 
 
@@ -378,6 +390,7 @@ def _(CheckerboardSampleable, SampleableDataset, device, plt):
         ax.set_yticks([])
         ax.set_title(f"Histogram of {target_name.capitalize()}")
     plt.show()
+
     return
 
 
@@ -470,6 +483,7 @@ def _(
         plt.show()
 
     plot_linear_model(linear_path)
+
     return (
         EulerSimulator,
         LinearConditionalProbabilityPath,
@@ -498,6 +512,7 @@ def _(
     _losses_linear = linear_trainer.train(
         num_epochs=10_000, device=device, lr=1e-4, batch_size=2_000
     )
+
     return (linear_flow_model,)
 
 
@@ -579,6 +594,7 @@ def _(
         plt.show()
 
     plot_fn()
+
     return
 
 
