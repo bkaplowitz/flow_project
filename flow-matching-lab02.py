@@ -185,7 +185,9 @@ def _(
     ).to(device)
     alpha = LinearAlpha()
     beta = SquareRootBeta()
-    path = GaussianConditionalProbabilityPath(p1=p_data, alpha=alpha, beta=beta)
+    path: GaussianConditionalProbabilityPath = GaussianConditionalProbabilityPath(
+        p1=p_data, alpha=alpha, beta=beta
+    )
     torch.manual_seed(1)
     x1: torch.Tensor = path.sample_conditioning_variable(1)
     conditional_vector_field_ode = ConditionalVectorFieldODE(path, x1)
@@ -200,7 +202,7 @@ def _(
     p_data: "GaussianMixture",
     p_simple: "Gaussian",
     params: "Box",
-    path,
+    path: "GaussianConditionalProbabilityPath",
     plot_flow_path,
     x1: "torch.Tensor",
 ):
@@ -403,7 +405,6 @@ def _(
     plt,
     torch,
 ):
-
     from flow_matching import EulerSimulator
     from flow_matching.paths import LinearConditionalProbabilityPath
     from flow_matching.plot import every_nth_index, hist2d_samples
@@ -489,7 +490,16 @@ def _(
         LinearConditionalProbabilityPath,
         every_nth_index,
         hist2d_samples,
+        linear_path,
     )
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    Flow matching with Linear Probability Paths
+    """)
+    return
 
 
 @app.cell
@@ -501,7 +511,6 @@ def _(
     MLPVectorField,
     device,
 ):
-    # FIXME!!!
     linear_path_conditional = LinearConditionalProbabilityPath(
         p0=Gaussian.isotropic(dim=2, std=1.0), p1=CheckerboardSampleable(device, grid_size=4)
     ).to(device)
@@ -510,26 +519,30 @@ def _(
         linear_path_conditional, model=linear_flow_model
     )
     _losses_linear = linear_trainer.train(
-        num_epochs=10_000, device=device, lr=1e-4, batch_size=2_000
+        num_epochs=10_000, device=device, lr=1e-3, batch_size=2_000
     )
 
-    return (linear_flow_model,)
+    return linear_flow_model, linear_path_conditional
 
 
 @app.cell
 def _(
     EulerSimulator,
     LearnedVectorFieldODE,
+    LinearConditionalProbabilityPath,
+    MLPVectorField,
     device,
     every_nth_index,
     hist2d_samples,
     linear_flow_model,
-    path,
+    linear_path,
+    linear_path_conditional,
     plt,
     torch,
 ):
-    # FIXME !!!!
-    def plot_fn():
+    def plot_learned_linear_flow(
+        lineaer_path: LinearConditionalProbabilityPath, linear_flow_model: MLPVectorField
+    ) -> None:
         ##########################
         # Play around With These #
         ##########################
@@ -550,7 +563,7 @@ def _(
         ts = torch.linspace(0.0, 1.0, num_marginals).to(device)
         for idx, t in enumerate(ts):
             tt = t.view(1, 1).expand(num_samples, 1)
-            xts = path.sample_marginal_path(tt)
+            xts = linear_path.sample_marginal_path(tt)
             hist2d_samples(
                 samples=xts.cpu(), ax=axes[0, idx], bins=200, scale=scale, percentile=99, alpha=1.0
             )
@@ -568,7 +581,7 @@ def _(
         simulator = EulerSimulator(ode)
         ts = torch.linspace(0, 1, 100).to(device)
         record_every_idxs = every_nth_index(len(ts), len(ts) // (num_marginals - 1))
-        x0 = path.p0.sample(num_samples).to(device)
+        x0 = linear_path.p0.sample(num_samples).to(device)
         xts = simulator.batch_simulate_with_trajectory(
             x0, ts.view(1, -1, 1).expand(num_samples, -1, 1)
         )
@@ -593,7 +606,98 @@ def _(
 
         plt.show()
 
-    plot_fn()
+    plot_learned_linear_flow(linear_path_conditional, linear_flow_model)
+
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    Now, bridge between arbitrary initial distribution and p_data.
+    """)
+    return
+
+
+@app.cell
+def _(
+    CheckerboardSampleable,
+    ConditionalFlowMatchingTrainer,
+    LinearConditionalProbabilityPath,
+    MLPVectorField,
+    SampleableDataset,
+    device,
+):
+    # Bridge
+    linear_path_bridge = LinearConditionalProbabilityPath(
+        p0=SampleableDataset.Circle(device), p1=CheckerboardSampleable(device, grid_size=4)
+    ).to(device)
+    bridging_flow_model = MLPVectorField(dim=2, hidden_dims=[100, 100, 100, 100])
+
+    # Trainer
+    bridging_trainer = ConditionalFlowMatchingTrainer(linear_path_bridge, bridging_flow_model)
+    _losses = bridging_trainer.train(num_epochs=20_000, device=device, lr=1e-3, batch_size=2_000)
+
+    return
+
+
+@app.cell
+def _(
+    EulerSimulator,
+    LearnedVectorFieldODE,
+    LinearConditionalProbabilityPath,
+    MLPVectorField,
+    device,
+    every_nth_index,
+    hist2d_samples,
+    plt,
+    torch,
+):
+    def plot_bridging_path(
+        bridging_path: LinearConditionalProbabilityPath,
+        bridging_flow_model: MLPVectorField,
+        scale=6.0,
+        num_samples=30_000,
+        num_marginals=5,
+    ):
+        fig, axs = plt.subplots(2, num_marginals, figsize=(6 * num_marginals, 6 * 2))
+
+        # Ground Truth
+        ts = torch.linspace(0, 1, num_marginals).to(device)
+        for idx, t in enumerate(ts):
+            t_expanded = t.view(1, 1).expand(num_samples, 1)
+            xts = bridging_path.sample_marginal_path(t_expanded)
+            hist2d_samples(
+                samples=xts.cpu(), ax=axs[0, idx], bins=200, scale=scale, percentile=99, alpha=1.0
+            )
+            axs[0, idx].set_xlim(-scale, scale)
+            axs[0, idx].set_ylim(-scale, scale)
+            axs[0, idx].set_xticks([])
+            axs[0, idx].set_yticks([])
+            axs.set_title(f"t={t.item():.2f}", fontsize=15)
+        axs[0, 0].set_ylabel("Ground Truth", fontsize=20)
+
+        # Graph learned marginals
+        ode = LearnedVectorFieldODE(bridging_flow_model)
+        simulator = EulerSimulator(ode)
+        ts = torch.linspace(0, 1, num_marginals).to(device)
+        record_every_nth_idx = every_nth_index(len(ts), len(ts) // (num_marginals - 1))
+        x0 = bridging_path.p0.sample(num_samples)
+        xts = simulator.batch_simulate_with_trajectory(
+            x0, ts.view(1, -1, 1).expand(num_samples, -1, 1)
+        )
+        xts = xts[:, record_every_nth_idx, :]
+        for idx, t in enumerate(ts):
+            x = xts[:, idx, :]
+            hist2d_samples(
+                samples=x.cpu(), ax=axs[1, idx], bins=200, scale=scale, percentile=99, alpha=1.0
+            )
+            axs[0, idx].set_xlim(-scale, scale)
+            axs[0, idx].set_ylim(-scale, scale)
+            axs[0, idx].set_xticks([])
+            axs[0, idx].set_yticks([])
+            axs.set_title(f"t={t.item():.2f}", fontsize=15)
+        axs[0, 0].set_ylabel("Learned", fontsize=20)
 
     return
 

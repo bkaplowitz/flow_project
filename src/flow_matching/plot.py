@@ -200,7 +200,7 @@ def hist2d_samples(
     scale: float | None = None,
     x_bounds: tuple[float, float] | None = None,
     y_bounds: tuple[float, float] | None = None,
-    percentile: int = 99,
+    percentile: int | float = 99,
     **kwargs,
 ) -> None:
     ax = _get_ax(ax)

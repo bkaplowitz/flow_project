@@ -93,7 +93,7 @@ class LinearConditionalProbabilityPath(ConditionalProbabilityPath):
         super().__init__(p0, p1)
 
     def sample_conditioning_variable(self, num_samples: int) -> Tensor:
-        """Samples the conditioning variable from p1 (dataset).
+        """Samples the conditioning variable from p1~p_data(x) (dataset).
 
         Args:
             - num_samples: the number of samples
@@ -114,7 +114,7 @@ class LinearConditionalProbabilityPath(ConditionalProbabilityPath):
         """
         num_samples = x1.shape[0]
         x0 = self.p0.sample(num_samples).to(x1.device)
-        return t * x0 + (1 - t) * x1
+        return (1 - t) * x0 + t * x1
 
     def conditional_vector_field(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
         """Samples the conditional random vector field u_t=(x1-xt)/(1-t).
