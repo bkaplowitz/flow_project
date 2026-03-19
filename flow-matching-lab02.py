@@ -242,7 +242,9 @@ def _(
     flow_model = MLPVectorField(dim=2, hidden_dims=[64, 64, 64, 64]).to(device)
     flow_model.compile()
     trainer = ConditionalFlowMatchingTrainer(path=path_flow, model=flow_model)
-    epochs, losses = trainer.train(num_epochs=5000, device=device, lr=1e-3, batch_size=1000)
+    epochs, losses = trainer.train(
+        model=flow_model, num_epochs=5000, device=device, lr=1e-3, batch_size=1000
+    )
 
     return (
         ConditionalFlowMatchingTrainer,
@@ -309,7 +311,7 @@ def _(
     score_model.compile()
     score_trainer = ConditionalScoreMatchingTrainer(path=path_score, model=score_model)
     epochs_score, losses_score = score_trainer.train(
-        num_epochs=2000, device=device, lr=1e-3, batch_size=1000
+        model=score_model, num_epochs=2000, device=device, lr=1e-3, batch_size=1000
     )
 
     return (
@@ -519,7 +521,7 @@ def _(
         linear_path_conditional, model=linear_flow_model
     )
     _losses_linear = linear_trainer.train(
-        num_epochs=10_000, device=device, lr=1e-3, batch_size=2_000
+        model=linear_flow_model, num_epochs=10_000, device=device, lr=1e-3, batch_size=2_000
     )
 
     return linear_flow_model, linear_path_conditional
@@ -636,7 +638,9 @@ def _(
 
     # Trainer
     bridging_trainer = ConditionalFlowMatchingTrainer(linear_path_bridge, bridging_flow_model)
-    _losses = bridging_trainer.train(num_epochs=20_000, device=device, lr=1e-3, batch_size=2_000)
+    _losses = bridging_trainer.train(
+        model=bridging_flow_model, num_epochs=20_000, device=device, lr=1e-3, batch_size=2_000
+    )
 
     return bridging_flow_model, linear_path_bridge
 

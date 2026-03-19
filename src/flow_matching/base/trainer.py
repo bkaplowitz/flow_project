@@ -41,16 +41,23 @@ class TrainKwargs(TypedDict, total=False):
 class Trainer(ABC):
     """A base class for trainers implementing training methods."""
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        model: nn.Module | None = None,
+        opt: torch.optim.Optimizer | None = None,
+        output_dir: str | Path | None = None,
+        **kwargs,
+    ):
         """Given a model, store trainer wrapper to run training.
 
         Args:
             - model: a torch model to be trained.
         """
         super().__init__()
-        self.model: nn.Module | None = None
-        self.opt: torch.optim.Optimizer | None = None
-        self.output_dir: str | Path | None = None
+
+        self.model: nn.Module | None = model
+        self.opt: torch.optim.Optimizer | None = opt
+        self.output_dir: str | Path | None = output_dir
 
     @abstractmethod
     def get_train_loss(self, **kwargs: Unpack[TrainKwargs]) -> Tensor:

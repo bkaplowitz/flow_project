@@ -52,6 +52,11 @@ class ConditionalFlowMatchingTrainer(Trainer):
         u_ref = self.path.conditional_vector_field(xt, x1, t)
         return torch.nn.functional.mse_loss(u_theta, u_ref)
 
+    def checkpoint(self, step: int):
+        torch.save(self.model.state_dict(), self.output_dir / f"step_{step:6d}_model.pt")
+        torch.save(self.opt.state_dict(), self.output_dir / f"step_{step:6d}_opt.pt")
+        # Save output visualization
+
 
 class ConditionalScoreMatchingTrainer(Trainer):
     """A trainer function specifically for learning the conditional score matching model."""
@@ -87,3 +92,8 @@ class ConditionalScoreMatchingTrainer(Trainer):
         s_ref = self.path.conditional_score(xt, x1, t)
         s_theta = self.model(xt, t)
         return torch.nn.functional.mse_loss(s_theta, s_ref)
+
+    def checkpoint(self, step: int):
+        torch.save(self.model.state_dict(), self.output_dir / f"step_{step:6d}_model.pt")
+        torch.save(self.opt.state_dict(), self.output_dir / f"step_{step:6d}_opt.pt")
+        # Save output visualization
