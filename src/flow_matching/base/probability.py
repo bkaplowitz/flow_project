@@ -42,7 +42,7 @@ class Sampleable(ABC):
 
     @property
     @abstractmethod
-    def dim(self) -> int:
+    def dim(self) -> int | list[int]:
         """Dimensionality of the distribution."""
         pass
 
@@ -55,6 +55,23 @@ class Sampleable(ABC):
 
         Returns:
             samples: shape (num_samples, dim)
+        """
+        pass
+
+
+class LabeledSampleable(ABC):
+    """Distribution that can be sampled from with data values and optional class labels."""
+
+    @abstractmethod
+    def sample(self, num_samples: int) -> tuple[Tensor, Tensor]:
+        """Returns samples from the distribution.
+
+        Args:
+            - num_samples: the desired number of samples
+
+        Returns:
+            - samples: shape (num_samples, dims)
+            - labels: shape (num_samples,)
         """
         pass
 

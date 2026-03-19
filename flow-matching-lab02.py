@@ -638,7 +638,7 @@ def _(
     bridging_trainer = ConditionalFlowMatchingTrainer(linear_path_bridge, bridging_flow_model)
     _losses = bridging_trainer.train(num_epochs=20_000, device=device, lr=1e-3, batch_size=2_000)
 
-    return
+    return bridging_flow_model, linear_path_bridge
 
 
 @app.cell
@@ -647,9 +647,11 @@ def _(
     LearnedVectorFieldODE,
     LinearConditionalProbabilityPath,
     MLPVectorField,
+    bridging_flow_model,
     device,
     every_nth_index,
     hist2d_samples,
+    linear_path_bridge,
     plt,
     torch,
 ):
@@ -674,7 +676,7 @@ def _(
             axs[0, idx].set_ylim(-scale, scale)
             axs[0, idx].set_xticks([])
             axs[0, idx].set_yticks([])
-            axs.set_title(f"t={t.item():.2f}", fontsize=15)
+            axs[0, idx].set_title(f"t={t.item():.2f}", fontsize=15)
         axs[0, 0].set_ylabel("Ground Truth", fontsize=20)
 
         # Graph learned marginals
@@ -692,12 +694,15 @@ def _(
             hist2d_samples(
                 samples=x.cpu(), ax=axs[1, idx], bins=200, scale=scale, percentile=99, alpha=1.0
             )
-            axs[0, idx].set_xlim(-scale, scale)
-            axs[0, idx].set_ylim(-scale, scale)
-            axs[0, idx].set_xticks([])
-            axs[0, idx].set_yticks([])
-            axs.set_title(f"t={t.item():.2f}", fontsize=15)
-        axs[0, 0].set_ylabel("Learned", fontsize=20)
+            axs[1, idx].set_xlim(-scale, scale)
+            axs[1, idx].set_ylim(-scale, scale)
+            axs[1, idx].set_xticks([])
+            axs[1, idx].set_yticks([])
+            axs[1, idx].set_title(f"t={t.item():.2f}", fontsize=15)
+        axs[1, 0].set_ylabel("Learned", fontsize=20)
+        plt.show()
+
+    plot_bridging_path(linear_path_bridge, bridging_flow_model)
 
     return
 

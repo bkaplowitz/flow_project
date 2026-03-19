@@ -17,8 +17,9 @@ class EulerSimulator(Simulator):
     def __init__(self, ode: ODE):
         self.ode = ode
 
-    def step(self, xt: Tensor, t: Tensor, dt: Tensor) -> Tensor:
-        return xt + self.ode.drift_coef(xt, t) * dt
+    def step(self, xt: Tensor, t: Tensor, dt: Tensor, **kwargs) -> Tensor:
+        dt = dt.view([-1] + [1] * (len(xt.shape) - 1))
+        return xt + self.ode.drift_coef(xt, t, **kwargs) * dt
 
 
 class EulerMaruyamaSimulator(Simulator):
@@ -27,12 +28,13 @@ class EulerMaruyamaSimulator(Simulator):
     def __init__(self, sde: SDE):
         self.sde = sde
 
-    def step(self, xt: Tensor, t: Tensor, dt: Tensor) -> Tensor:
+    def step(self, xt: Tensor, t: Tensor, dt: Tensor, **kwargs) -> Tensor:
         x0 = torch.randn_like(xt)
+        dt = dt.view([-1] + [1] * (len(xt.shape) - 1))
         return (
             xt
-            + self.sde.drift_coef(xt, t) * dt
-            + self.sde.diffusion_coef(xt, t) * torch.sqrt(dt) * x0
+            + self.sde.drift_coef(xt, t, **kwargs) * dt
+            + self.sde.diffusion_coef(xt, t, **kwargs) * torch.sqrt(dt) * x0
         )
 
 
@@ -46,3 +48,12 @@ def simulate(step: Callable[[Tensor, Tensor, Tensor], Tensor], x0: Tensor, ts: T
         x = step(x, t, h)
         xs.append(x.clone())
     return torch.stack(xs, dim=1)
+
+
+def record_every(num_timesteps: int, record_every: int) -> Tensor:
+    """Compute the indices to record in the trajectory given a `record_every` parameter."""
+    if record_every == 1:
+        return torch.arange(num_timesteps)
+    return torch.cat(
+        [torch.arange(0, num_timesteps - 1, record_every), torch.tensor([num_timesteps - 1])]
+    )

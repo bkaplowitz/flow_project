@@ -9,8 +9,10 @@ from abc import ABC, abstractmethod
 import torch
 from torch import Tensor, nn
 
+from flow_matching.base.probability import LabeledSampleable, Sampleable
 
-class ConditionalProbabilityPath[T0, T1](nn.Module, ABC):
+
+class ConditionalProbabilityPath[T0, T1: Sampleable](nn.Module, ABC):
     """Abstract base class for conditional probability paths."""
 
     def __init__(self, p0: T0, p1: T1) -> None:
@@ -82,6 +84,100 @@ class ConditionalProbabilityPath[T0, T1](nn.Module, ABC):
         num_samples = t.shape[0]
         x1 = self.sample_conditioning_variable(num_samples)
         xt = self.sample_conditional_path(x1, t)
+        return xt
+
+    @staticmethod
+    def oob_check(t: Tensor) -> None:
+        """Helper function to check t is in [0,1).
+
+        Args:
+            t: Tensor to check if strictly in [0,1)
+        """
+        t_below_zero = (t < torch.zeros_like(t)).any()
+        t_above_one = (t >= torch.ones_like(t)).any()
+        if t_below_zero or t_above_one:
+            t_oob = "only defined for t in [0,1)."
+            if t_above_one:
+                t_oob += f"Found t max: {t.max()}>=1."
+            if t_below_zero:
+                t_oob += f"Found t min: {t.min()}< 0."
+            raise ValueError(t_oob)
+
+
+class ConditionalLabeledProbabilityPath[T0, T1: LabeledSampleable](nn.Module, ABC):
+    """Abstract base class for conditional probability paths with associated labels."""
+
+    def __init__(self, p0: T0, p1: T1) -> None:
+        super().__init__()
+        self.p0 = p0
+        self.p1 = p1
+
+    @abstractmethod
+    def sample_conditioning_variable(self, num_samples: int) -> Tensor:
+        """Samples the conditioning variable x1 ~ p1(x). and associated label y.
+
+        Args:
+            num_samples: number of samples
+
+        Returns:
+            x1: samples from p1(x), (num_samples, ...)
+            y: labels associated with p1(x) (num_samples,)
+
+        """
+        pass
+
+    @abstractmethod
+    def sample_conditional_path(self, x1: Tensor, t: Tensor) -> Tensor:
+        """Samples from the conditional distribution p_t(x|x1).
+
+        Args:
+            x1: conditioning/target variable, data (num_samples, ...)
+            t: time (num_samples, 1)
+
+        Returns:
+            xt: samples from p_t(x|x1), (num_samples, ...)
+        """
+        pass
+
+    @abstractmethod
+    def conditional_vector_field(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
+        """Evaluates the conditional vector field u_t(x|x1).
+
+        Args:
+            xt: position variable (num_samples, ...)
+            x1: conditioning variable (num_samples, ...)
+            t: time (num_samples, 1)
+
+        Returns:
+            conditional_vector_field: conditional vector field (num_samples, ...)
+        """
+
+    @abstractmethod
+    def conditional_score(self, xt: Tensor, x1: Tensor, t: Tensor) -> Tensor:
+        r"""Evaluates the conditional score of p_t(x|x1).
+
+        Args:
+            xt: position variable (num_samples, dims)
+            x1: conditioning variable (num_samples, dims)
+            t: time (num_samples, 1)
+
+        Returns:
+            conditional_score: conditional score $\nabla_{x} \log(p_t(x|x1))$. (num_samples, dim)
+        """
+        pass
+
+    def sample_marginal_path(self, t: Tensor) -> Tensor:
+        """Samples from the marginal distribution p_t(x) = ∫ p_t(x|x1) p1(x1) dx1.
+
+        Args:
+            t: time (num_samples, 1)
+
+        Returns:
+            xt: samples from p_t(x) (num_samples, ...)
+        """
+        num_samples = t.shape[0]
+        x1 = self.sample_conditioning_variable(num_samples)
+        xt, _ = self.sample_conditional_path(x1, t)
         return xt
 
     @staticmethod

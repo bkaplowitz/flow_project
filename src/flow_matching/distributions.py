@@ -9,13 +9,14 @@ import torch.distributions as D
 from sklearn.datasets import make_circles, make_moons
 from torch import Tensor, nn
 
-from flow_matching.base.probability import Sampleable, SampleableDensity
+from flow_matching.base.probability import LabeledSampleable, Sampleable, SampleableDensity
 
 
 class Gaussian(nn.Module, SampleableDensity):
     """Two-dimensional Gaussian distribution.
 
     Wraps torch.distributions.MultivariateNormal.
+    Practically we would use torch.randn.
     """
 
     def __init__(self, mean: Tensor, cov: Tensor):
@@ -27,10 +28,8 @@ class Gaussian(nn.Module, SampleableDensity):
         """
         super().__init__()
         # static
-        self.mean: Tensor
-        self.cov: Tensor
-        self.register_buffer("mean", mean)
-        self.register_buffer("cov", cov)
+        self.mean = nn.Buffer(mean)
+        self.cov = nn.Buffer(cov)
         self._cached_dist = None
 
     @property
@@ -63,8 +62,29 @@ class Gaussian(nn.Module, SampleableDensity):
         return cls(mean, cov)
 
 
+class IsotropicGaussian(nn.Module, Sampleable):
+    """Sampleable wrapper around torch.randn."""
+
+    def __init__(self, shape: list[int], std: float = 1.0):
+        """shape: shape of sampled data."""
+        super().__init__()
+        self.shape = shape
+        self.std = std
+        self.dummy = nn.Buffer(
+            torch.zeros(1)
+        )  # will automatically be moved when self.to is called.
+        # Used for ensuring sampling on correct device.
+
+    @property
+    def dim(self) -> list[int]:
+        return self.shape
+
+    def sample(self, num_samples) -> Tensor:
+        return self.std * torch.randn(num_samples, *self.shape).to(self.dummy.device)
+
+
 class GaussianMixture(nn.Module, SampleableDensity):
-    """Two-dimensional Gaussian mixture model.
+    """Two-dimensional unlabelled Gaussian mixture model.
 
     Wraps torch.distributions.MixtureSameFamily.
     """
@@ -84,12 +104,9 @@ class GaussianMixture(nn.Module, SampleableDensity):
         """
         super().__init__()
         self.nmodes = means.shape[0]
-        self.means: Tensor
-        self.covs: Tensor
-        self.weights: Tensor
-        self.register_buffer("means", means)
-        self.register_buffer("covs", covs)
-        self.register_buffer("weights", weights)
+        self.means = nn.Buffer(means)
+        self.covs = nn.Buffer(covs)
+        self.weights = nn.Buffer(weights)
         self._cached_dist = None
 
     @property
@@ -140,7 +157,88 @@ class GaussianMixture(nn.Module, SampleableDensity):
         return cls(means, covs, weights)
 
 
-# Without densities
+class LabeledGaussianMixture(nn.Module, LabeledSampleable):
+    """A labelled version of GaussianMixture."""
+
+    def __init__(self, means: Tensor, covs: Tensor, weights: Tensor):
+        super().__init__()
+        self.means = nn.Buffer(means)
+        self.covs = nn.Buffer(covs)
+        self.weights = nn.Buffer(weights)
+        self._cached_dist = None
+
+    @property
+    def dim(self) -> int:
+        return self.means.shape[1]
+
+    @property
+    def distribution(self):
+        if self._cached_dist is None:
+            self._cached_dist = D.MixtureSameFamily(
+                mixture_distribution=D.Categorical(probs=self.weights, validate_args=False),
+                component_distribution=D.MultivariateNormal(
+                    loc=self.means,
+                    covariance_matrix=self.covs,
+                    validate_args=False,
+                ),
+                validate_args=False,
+            )
+        return self._cached_dist
+
+    def _apply(self, fn, recurse=True):
+        self._cached_dist = None
+        return super()._apply(fn, recurse)
+
+    def log_density(self, x: Tensor) -> Tensor:
+        return self.distribution.log_prob(x).view(-1, 1)
+
+    def sample(self, num_samples: int) -> tuple[Tensor, Tensor]:
+        """Samples num_samples from distribution.
+
+        Args:
+            - num_samples: the desired number of samples
+
+        Returns:
+            - samples: shape (num_samples, dims)
+            - labels (num_samples)
+        """
+        # Choose amount of each mode
+        # Perfor multinomial sampling on CPU to avoid device-side assertion errors
+        # Sample labels of modes
+        labels = torch.multinomial(
+            self.weights.cpu(), num_samples=num_samples, replacement=True
+        ).to(self.means.device)
+
+        # Sample from each mode
+        samples = torch.zeros(num_samples, self.dim).to(self.means.device)
+        for mode_i in range(len(self.means)):
+            mode_i_draws = labels == mode_i
+            # Samples just at mode i depending on # of times drawn
+            samples[mode_i_draws] = (
+                torch.rand_like(samples[mode_i_draws]) * self.covs[mode_i] + self.means[mode_i]
+            )
+        return samples, labels
+
+    @classmethod
+    def random_2D(
+        cls, nmodes: int, std: float, scale: float = 10.0, seed=0.0
+    ) -> "LabeledGaussianMixture":
+        torch.manual_seed(seed)
+        means = (torch.rand(nmodes, 2) - 0.5) * scale
+        # Diagonal cov matrix
+        covs = torch.diag_embed(torch.ones(nmodes, 2)) * std**2
+        weights = torch.ones(nmodes) / nmodes  # uniform
+        return cls(means, covs, weights)
+
+    @classmethod
+    def symmetric_2D(cls, nmodes: int, std: float, scale: float = 10.0) -> "LabeledGaussianMixture":
+        # only select nmodes, exclude 2pi position duplicate
+        angles = torch.linspace(0, 2 * np.pi, nmodes + 1)[:nmodes]
+        # embed means via polar coords
+        means = torch.stack([torch.cos(angles), torch.sin(angles)], dim=1) * scale
+        covs = torch.diag_embed(torch.ones(nmodes, 2)) * std**2
+        weights = torch.ones(nmodes) / nmodes
+        return cls(means, covs, weights)
 
 
 class SampleableDataset(Sampleable):
