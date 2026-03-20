@@ -33,9 +33,9 @@ def model_size_b(model: nn.Module) -> int:
 
 
 class TrainKwargs(TypedDict, total=False):
+    """Optional keyword arguments for trainer."""
+
     batch_size: int
-    opt: torch.optim.Optimizer
-    output_dir: str
 
 
 class Trainer(ABC):
