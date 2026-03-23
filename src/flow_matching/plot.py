@@ -39,9 +39,7 @@ def _get_ax(ax: Axes | None = None) -> Axes:
     Args:
         ax: possible axes or None, in which case return default of gca.
     """
-    if ax is None:
-        return plt.gca()
-    return ax
+    return plt.gca() if ax is None else ax
 
 
 def _get_bounds(
@@ -65,10 +63,7 @@ def _get_bounds(
         raise ValueError("Either scale or x_bounds and y_bounds must be provided.")
     # scale is not None or (x_bounds is not None and y_bounds is not None)
     if scale is None:
-        # Guard clause
-        if x_bounds is None or y_bounds is None:
-            raise ValueError("Either scale or both x_bounds and y_bounds must be provided.")
-        return x_bounds, y_bounds
+        return x_bounds, y_bounds  # type: ignore[reportReturnType]
     # If scale is not None, prefer x_bound or y_bound if provided, fall back to (-scale, scale)
     x_bounds = x_bounds if x_bounds is not None else (-scale, scale)
     y_bounds = y_bounds if y_bounds is not None else (-scale, scale)
@@ -384,10 +379,7 @@ def graph_dynamics(
         scatter_ax.scatter(
             xt[:, 0].cpu(), xt[:, 1].cpu(), marker="x", color="black", alpha=0.75, s=15
         )
-        scatter_ax.set_title(f"Samples at t={t:.1f}", fontsize=15)
-        scatter_ax.set_xticks([])
-        scatter_ax.set_yticks([])
-
+        _set_plot_title_and_ticks(scatter_ax, "Samples at", t)
         # Kdeplot axes
         kdeplot_ax = axes[1, t_idx]
         imshow_density(
@@ -400,13 +392,18 @@ def graph_dynamics(
             ax=kdeplot_ax,
             color="grey",
         )
-        kdeplot_ax.set_title(f"Density of Samples at t={t:.1f}", fontsize=15)
-        kdeplot_ax.set_xticks([])
-        kdeplot_ax.set_yticks([])
+        _set_plot_title_and_ticks(kdeplot_ax, "Density of Samples", t)
         kdeplot_ax.set_xlabel("")
         kdeplot_ax.set_ylabel("")
 
     plt.show()
+
+
+def _set_plot_title_and_ticks(ax: Axes, graph_type: str, t: int | float):
+    """Helper function to plot title and ticks."""
+    ax.set_title(f"{graph_type} at {t=:.1f}", fontsize=15)
+    ax.set_xticks([])
+    ax.set_yticks([])
 
 
 def animate_dynamics(
@@ -533,11 +530,11 @@ def plot_density(
             bins=bins,
             **kwargs,
         )
+    elif num_samples is None:
+        raise ValueError(
+            "If dist is subclass Sampleable and has no density, num_samples must be provided."
+        )
     else:
-        if num_samples is None:
-            raise ValueError(
-                "If dist is subclass Sampleable and has no density, num_samples must be provided."
-            )
         hist2d_sampleable(
             dist,
             num_samples=num_samples,
@@ -551,7 +548,7 @@ def plot_density(
 
 
 def plot_conditional_probability_path(
-    path: ConditionalProbabilityPath[Sampleable | Density, Sampleable | Density],
+    path: ConditionalProbabilityPath[Sampleable | Density, Sampleable],
     num_samples: int = 20_000,
     bins: int = 200,
 ) -> None:

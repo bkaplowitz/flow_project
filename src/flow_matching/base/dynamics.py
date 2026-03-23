@@ -11,7 +11,7 @@ class ODE(ABC):
     """Represents an ODE with associated `drift_coef` method."""
 
     @abstractmethod
-    def drift_coef(self, xt: Tensor, t: Tensor, **kwargs) -> Tensor:
+    def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
         """Drift coefficient of associated ODE.
 
         Args:
@@ -28,7 +28,7 @@ class SDE(ABC):
     """Represents a SDE with associated `drift_coef` and `diffusion_coef` methods."""
 
     @abstractmethod
-    def drift_coef(self, xt: Tensor, t: Tensor, **kwargs) -> Tensor:
+    def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
         """Drift coefficient of associated SDE.
 
         Args:
@@ -41,7 +41,7 @@ class SDE(ABC):
         pass
 
     @abstractmethod
-    def diffusion_coef(self, xt: Tensor, t: Tensor, **kwargs) -> Tensor:
+    def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
         """Returns the diffusion coefficient of the SDE.
 
         Args:

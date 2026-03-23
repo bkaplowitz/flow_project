@@ -225,4 +225,4 @@ class LinearConditionalProbabilityPath(ConditionalProbabilityPath):
         self, xt: torch.Tensor, x1: torch.Tensor, t: torch.Tensor
     ) -> torch.Tensor:
         """Not known for Linear Conditional Probability Paths."""
-        raise Exception("You should not be calling this function!")
+        raise AttributeError("You should not be calling this function!")

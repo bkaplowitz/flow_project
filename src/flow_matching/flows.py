@@ -37,9 +37,9 @@ class ConditionalVectorFieldODE(ODE):
 class ConditionalVectorFieldSDE(SDE):
     r"""Construct a Langevin of associated conditional probability path.
 
-    Langevin is relaed to score $score(X_t) = \nabla_x log p_t(X_t|x1)$ and given by:
+    Langevin is relaed to score $score(X_t) = ∇_x log p_t(X_t|x1)$ and given by:
 
-    $dX_t = [u_t(X_t|x1) +1/2 sigma^2_t \nabla_x log p_t(X_t|x1)]dt + \sigma dW_t$.
+    $dX_t = [u_t(X_t|x1) +1/2 σ^2_t ∇_x log p_t(X_t|x1)]dt + σ dW_t$.
 
     Args:
         path: The conditional probability path object that this is the vector field of.
@@ -114,7 +114,7 @@ class LangevinFlowSDE(SDE):
         self.score_model = score_model
         self.sigma = sigma
 
-    def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+    def drift_coef(self, xt: Tensor, t: Tensor, **kwargs) -> Tensor:
         """Returns drift coefficient at xt, t.
 
         Args:
@@ -126,7 +126,7 @@ class LangevinFlowSDE(SDE):
         """
         return self.flow_model(xt, t) + 0.5 * self.sigma**2 * self.score_model(xt, t)
 
-    def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+    def diffusion_coef(self, xt: Tensor, t: Tensor, **kwargs) -> Tensor:
         """Returns diffusion coefficient at xt, t.
 
         Args:

@@ -22,7 +22,7 @@ class Density(ABC):
         pass
 
     def score(self, x: Tensor) -> Tensor:
-        r"""Returns the score at x: ∇ₓ log_density(x)$.
+        r"""Returns the score at x: $∇ₓ log_density(x)$.
 
         Args:
             x: (bs, dim)

@@ -24,9 +24,7 @@ def model_size_b(model: nn.Module) -> int:
     Returns:
         - size: model size in bytes.
     """
-    size = 0
-    for param in model.parameters():
-        size += param.nelement() * param.element_size()
+    size = sum(param.nelement() * param.element_size() for param in model.parameters())
     for buf in model.buffers():
         size += buf.nelement() * buf.element_size()
     return size
@@ -43,7 +41,7 @@ class Trainer(ABC):
 
     def __init__(
         self,
-        model: nn.Module | None = None,
+        model: nn.Module,
         opt: torch.optim.Optimizer | None = None,
         output_dir: str | Path | None = None,
         **kwargs,
@@ -55,9 +53,9 @@ class Trainer(ABC):
         """
         super().__init__()
 
-        self.model: nn.Module | None = model
+        self.model: nn.Module = model
         self.opt: torch.optim.Optimizer | None = opt
-        self.output_dir: str | Path | None = output_dir
+        self.output_dir = Path(output_dir) if isinstance(output_dir, str) else output_dir
 
     @abstractmethod
     def get_train_loss(self, **kwargs: Unpack[TrainKwargs]) -> Tensor:
@@ -69,7 +67,7 @@ class Trainer(ABC):
         """Checkpoints the model."""
         pass
 
-    def get_optimizer(self, lr: float):
+    def get_optimizer(self, lr: float) -> torch.optim.Optimizer:
         """Returns a new instance of adam optimizer that trains on model parameters.
 
         Args:
@@ -126,7 +124,7 @@ class Trainer(ABC):
         ckpt_every: int | None = 500,
         run_name: str | None = None,
         **kwargs: Unpack[TrainKwargs],
-    ) -> tuple[list[int], list[float]]:
+    ) -> tuple[list[int], list[Tensor]]:
         """Given a number of epochs, trains model.
 
         Does a linear warmup from 0 -> lr over warmup_steps then constant lr.
@@ -144,7 +142,7 @@ class Trainer(ABC):
         run_name = run_name or self.random_name()
         self.output_dir = Path("runs") / run_name
         self.output_dir.mkdir(exist_ok=True, parents=True)
-        print("Initialized output directory at: " + str(self.output_dir))
+        print(f"Initialized output directory at: {str(self.output_dir)}")
 
         # Initialize model
         self.model = model
@@ -159,7 +157,7 @@ class Trainer(ABC):
             pg["lr"] = 0.0
 
         steps: list[int] = []
-        losses: list[float] = []
+        losses: list[Tensor] = []
         # Train loop
         pbar = tqdm(enumerate(range(num_epochs)))
         for idx, step in pbar:
@@ -175,7 +173,7 @@ class Trainer(ABC):
             loss.backward()
             self.opt.step()
             steps.append(step)
-            losses.append(float(loss.detach().item()))
+            losses.append(loss.detach())
             pbar.set_description(f"Epoch:{idx}, lr={cur_lr:.2e}  loss={loss.detach().item():.4f}")
             # Setup callback to checkpoint
             if ckpt_every is not None and step % ckpt_every == 0 and step > 0:

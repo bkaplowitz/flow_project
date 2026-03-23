@@ -8,7 +8,7 @@ from flow_matching.base.probability import Density
 
 
 class BrownianMotion(SDE):
-    r"""A Brownian motion process, defined by $dX_t = \sigma dW_t$.
+    r"""A Brownian motion process, defined by $dX_t = σ dW_t$.
 
     Drift: $u_t(X_t)=0$.
     Diffusion: $\sigma_t(X_t) = \sigma$.
@@ -25,7 +25,7 @@ class BrownianMotion(SDE):
 
 
 class OrnsteinUhlenbeckProcess(SDE):
-    r"""An Ornstein Uhlenbeck process defined by $dX_t = -\theta X_t + \sigma dW_t$.
+    r"""An Ornstein Uhlenbeck process defined by $dX_t = -\theta X_t + σ dW_t$.
 
     Drift: $u_t(X_t) = -\theta X_t$.
     Diffusion: $\sigma_t(X_t) = \sigma$.
@@ -35,17 +35,17 @@ class OrnsteinUhlenbeckProcess(SDE):
         self.theta = theta
         self.sigma = sigma
 
-    def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+    def drift_coef(self, xt: Tensor, t: Tensor, **kwargs) -> Tensor:
         return -self.theta * xt  # shape: (bs, dim)
 
-    def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+    def diffusion_coef(self, xt: Tensor, t: Tensor, **kwargs) -> Tensor:
         return self.sigma * torch.ones_like(xt)  # shape: (bs, dim)
 
 
 class LangevinSDE(SDE):
     r"""Overdamped Langevin SDE.
 
-    Defined by $dX_t = \frac{1}{2} \sigma^2 \nabla \log p(X_t)dt + \sigma dW_t$.
+    Defined by $dX_t = \frac{1}{2} \sigma^2 ∇ \log p(X_t)dt + σ dW_t$.
 
     Drift $u_t(X_t) = 1/2 \sigma^2 \grad \log p(X_t)$ for some target $p$ density.
     Diffusion $\sigma_t(X_t) = \sigma$.
@@ -55,8 +55,8 @@ class LangevinSDE(SDE):
         self.sigma = sigma
         self.density = density
 
-    def drift_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+    def drift_coef(self, xt: Tensor, t: Tensor, **kwargs) -> Tensor:
         return 0.5 * self.sigma**2 * self.density.score(xt)
 
-    def diffusion_coef(self, xt: Tensor, t: Tensor) -> Tensor:
+    def diffusion_coef(self, xt: Tensor, t: Tensor, **kwargs) -> Tensor:
         return self.sigma * torch.ones_like(xt)

@@ -53,6 +53,10 @@ class ConditionalFlowMatchingTrainer(Trainer):
         return torch.nn.functional.mse_loss(u_theta, u_ref)
 
     def checkpoint(self, step: int):
+        if self.output_dir is None:
+            raise ValueError("output dir must be provided.")
+        if self.opt is None:
+            raise ValueError("Didn't find optimizer.")
         torch.save(self.model.state_dict(), self.output_dir / f"step_{step:6d}_model.pt")
         torch.save(self.opt.state_dict(), self.output_dir / f"step_{step:6d}_opt.pt")
         # Save output visualization
@@ -94,6 +98,8 @@ class ConditionalScoreMatchingTrainer(Trainer):
         return torch.nn.functional.mse_loss(s_theta, s_ref)
 
     def checkpoint(self, step: int):
+        assert self.output_dir is not None, "outputdir must be provided."
         torch.save(self.model.state_dict(), self.output_dir / f"step_{step:6d}_model.pt")
+        assert self.opt is not None, "optimizer must be found to save."
         torch.save(self.opt.state_dict(), self.output_dir / f"step_{step:6d}_opt.pt")
         # Save output visualization
