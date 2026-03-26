@@ -29,6 +29,7 @@ class Simulator(ABC):
         Args:
             x0: initial x, shape (bs, ...)
             ts: timesteps, shape (nts,)
+            use_tqdm: whether to use tqm or not.
 
         Returns:
             xT: Final x at time ts[-1], shape (bs, ...)

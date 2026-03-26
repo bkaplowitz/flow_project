@@ -39,10 +39,15 @@ class EulerMaruyamaSimulator(Simulator):
 
 
 # Alternative, functional.
-def simulate(step: Callable[[Tensor, Tensor, Tensor], Tensor], x0: Tensor, ts: Tensor) -> Tensor:
+@torch.inference_mode()
+def simulate(
+    step: Callable[[Tensor, Tensor, Tensor], Tensor], x0: Tensor, ts: Tensor, use_tqdm: bool = True
+) -> Tensor:
     x = x0
-    xs = [x.clone()]
-    for t_idx in tqdm(range(len(ts) - 1)):
+    xs: list[Tensor] = [x.clone()]
+    nts = len(ts)
+    pbar = tqdm(range(nts - 1)) if use_tqdm else range(nts - 1)
+    for t_idx in pbar:
         t = ts[t_idx]
         h = ts[t_idx + 1] - ts[t_idx]
         x = step(x, t, h)
@@ -51,7 +56,15 @@ def simulate(step: Callable[[Tensor, Tensor, Tensor], Tensor], x0: Tensor, ts: T
 
 
 def record_every(num_timesteps: int, record_every: int) -> Tensor:
-    """Compute the indices to record in the trajectory given a `record_every` parameter."""
+    """Compute the indices to record in the trajectory given a `record_every` parameter.
+
+    Args:
+        - num_timesteps: number of timesteps we are sampling from
+        - record_every: positive integer, how frequently we are sampling.
+    """
+    if num_timesteps <= 1:
+        return torch.tensor([0])
+    assert record_every >= 1, "record_every must be positive integer."
     if record_every == 1:
         return torch.arange(num_timesteps)
     return torch.cat(
