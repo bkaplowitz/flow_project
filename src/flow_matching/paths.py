@@ -10,7 +10,7 @@ from flow_matching.base.paths import (
     ConditionalLabeledProbabilityPath,
     ConditionalProbabilityPath,
 )
-from flow_matching.base.probability import Sampleable, SampleableDensity
+from flow_matching.base.probability import LabeledSampleable, Sampleable, SampleableDensity
 from flow_matching.distributions import Gaussian, IsotropicGaussian
 
 
@@ -104,11 +104,12 @@ class GaussianConditionalProbabilityPath(ConditionalProbabilityPath):
         return (self.alpha(t) * x1 - xt) / (self.beta(t) ** 2)
 
 
-class GaussianConditionalLabeledProbabilityPath(ConditionalLabeledProbabilityPath):
+class GaussianConditionalLabeledProbabilityPath[T1: LabeledSampleable](
+    ConditionalLabeledProbabilityPath
+):
     """A gaussian conditional probability path, starting from initial gaussian distribution."""
 
-    def __init__(self, p1: SampleableDensity, alpha: Alpha, beta: Beta, p0_shape: list[int]):
-        self.dim = p1.dim
+    def __init__(self, p1: T1, alpha: Alpha, beta: Beta, p0_shape: list[int]):
         p0 = IsotropicGaussian(shape=p0_shape, std=1.0)
         super().__init__(p0, p1)
         self.alpha = alpha

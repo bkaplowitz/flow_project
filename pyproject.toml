@@ -16,7 +16,7 @@ dependencies = [
     "ipykernel>=7.2.0",
     "jupyter>=1.1.1",
     "jupyterlab>=4.5.4",
-    "marimo>=0.20.2",
+    "marimo>=0.22.4",
     "matplotlib>=3.10.8",
     "nbconvert>=7.17.0",
     "nbformat>=5.10.4",
@@ -27,6 +27,7 @@ dependencies = [
     "scipy>=1.17.0",
     "seaborn>=0.13.2",
     "torch>=2.10.0",
+    "torchvision>=0.25.0",
     "tqdm>=4.67.3",
     "wheel>=0.46.3",
 ]

@@ -16,7 +16,25 @@ class ODE(ABC):
 
         Args:
             xt: state at time t, shape (bs, ...)
-            t: time, shape ()
+            t: time, shape (bs)
+
+        Returns:
+            drift coefficient shape (bs, ...)
+        """
+        pass
+
+
+class ConditionedODE(ABC):
+    """Represents an ODE with associated `drift_coef` method with  conditioning."""
+
+    @abstractmethod
+    def drift_coef(self, xt: Tensor, t: Tensor, y: Tensor) -> Tensor:
+        """Drift coefficient of associated ODE.
+
+        Args:
+            xt: state at time t, shape (bs, ...)
+            t: time, shape (bs,)
+            y: conditioning label, shape ()
 
         Returns:
             drift coefficient shape (bs, ...)
@@ -33,7 +51,7 @@ class SDE(ABC):
 
         Args:
             xt: state at time t, shape (bs, ...)
-            t: time, shape ()
+            t: time, shape (bs,)
 
         Returns:
             drift coefficient shape (bs, ...)
@@ -46,7 +64,7 @@ class SDE(ABC):
 
         Args:
             xt: state at time t, shape (batch_size, ...)
-            t: time, shape ()
+            t: time, shape (batch_size)
 
         Returns:
             diffusion coefficient: shape (batch_size, ...)

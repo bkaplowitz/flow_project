@@ -4,8 +4,10 @@ import torch
 from torch import Tensor
 
 from flow_matching.base.paths import ConditionalProbabilityPath
+from flow_matching.base.probability import LabeledSampleable
 from flow_matching.base.trainer import Trainer
 from flow_matching.models import MLPScore, MLPVectorField
+from flow_matching.paths import GaussianConditionalLabeledProbabilityPath
 
 
 class ConditionalFlowMatchingTrainer(Trainer):
@@ -103,3 +105,33 @@ class ConditionalScoreMatchingTrainer(Trainer):
         assert self.opt is not None, "optimizer must be found to save."
         torch.save(self.opt.state_dict(), self.output_dir / f"step_{step:6d}_opt.pt")
         # Save output visualization
+
+
+class CFGTrainer(Trainer):
+    def __init__(
+        self,
+        path: GaussianConditionalLabeledProbabilityPath[LabeledSampleable],
+        eta: float,
+        null_label: int,
+        eps: float = 1e-3,
+        **kwargs,
+    ):
+        assert eta > 0 and eta < 1
+        super().__init__(**kwargs)
+        self.eta = eta
+        self.eps = eps
+        self.path = path
+        self.null_label = null_label
+
+    def get_train_loss(self, batch_size: int, **kwargs) -> Tensor:
+        # Sample x1,y from p1
+        x1, y = self.path.p1.sample(batch_size)
+        # Set labels to null with prob eta
+        probs = torch.rand_like(y)
+        y[probs < self.eta] = self.null_label
+        # Sample t, x
+        t = torch.rand_like(x1)
+        xt = self.path.sample_conditional_path(x1, t)
+        u_theta = self.model(xt, t, y)
+        u_ref = self.path.conditional_vector_field(xt, x1, t)
+        return torch.nn.functional.mse_loss(u_theta, u_ref)

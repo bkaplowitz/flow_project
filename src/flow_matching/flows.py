@@ -1,14 +1,16 @@
 import torch
 from torch import Tensor
 
-from flow_matching.base.dynamics import ODE, SDE
+from flow_matching.base.dynamics import ODE, SDE, ConditionedODE
 from flow_matching.base.paths import ConditionalProbabilityPath
-from flow_matching.models import MLPScore, MLPVectorField
+from flow_matching.models import MLPConditionalVectorField, MLPScore, MLPVectorField
 
 
 class ConditionalVectorFieldODE(ODE):
     def __init__(self, path: ConditionalProbabilityPath, x1: Tensor):
         """Construct a conditional vector field for a given probability path.
+
+        Conditional here refers to conditioning on data generation.
 
         Args:
             path: The conditional probability path object that this is the vector field of.
@@ -137,3 +139,27 @@ class LangevinFlowSDE(SDE):
             - sigma_t, diffusion coefficient shape (bs, dim)
         """
         return self.sigma * torch.ones_like(xt)
+
+
+class CFGVectorFieldODE(ConditionedODE):
+    def __init__(
+        self, net: MLPConditionalVectorField, null_label: int, guidance_scale: float = 1.0
+    ):
+        self.net = net
+        self.guidance_scale = guidance_scale
+        self.null_label = null_label
+
+    def drift_coef(self, xt: Tensor, t: Tensor, y: Tensor) -> Tensor:
+        """Computes drift coefficient for associated ODE for CFG.
+
+        Args:
+        - x: shape (bs, ...)
+        - t: shape (bs,)
+        - y: shape (bs,)
+        """
+        guided_vector_field = self.net(xt, t, y)
+        unguided_y = torch.ones_like(y) * self.null_label
+        unguided_vector_field = self.net(xt, t, unguided_y)
+        return (
+            1 - self.guidance_scale
+        ) * unguided_vector_field + self.guidance_scale * guided_vector_field
