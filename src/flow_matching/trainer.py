@@ -54,7 +54,7 @@ class ConditionalFlowMatchingTrainer(Trainer):
         u_ref = self.path.conditional_vector_field(xt, x1, t)
         return torch.nn.functional.mse_loss(u_theta, u_ref)
 
-    def checkpoint(self, step: int):
+    def checkpoint(self, step: int) -> None:
         if self.output_dir is None:
             raise ValueError("output dir must be provided.")
         if self.opt is None:
@@ -108,6 +108,8 @@ class ConditionalScoreMatchingTrainer(Trainer):
 
 
 class CFGTrainer(Trainer):
+    """A trainer for classifier-free guidance."""
+
     def __init__(
         self,
         path: GaussianConditionalLabeledProbabilityPath[LabeledSampleable],
