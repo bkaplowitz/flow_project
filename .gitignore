@@ -12,3 +12,4 @@ build/
 dynamics_animation.mp4
 .claude.local.md
 data/
+runs/

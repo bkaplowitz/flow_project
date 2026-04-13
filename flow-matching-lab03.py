@@ -109,7 +109,6 @@ def _(
     LinearAlpha,
     LinearBeta,
     Tensor,
-    plt,
     th,
 ):
     # classifier free guidance
@@ -145,12 +144,19 @@ def _(
         return steps, losses, gmm
 
     steps, losses, gmm = train_gmm()
+
+    return LabeledGaussianMixture, losses, steps
+
+
+@app.cell
+def _(losses, plt, steps):
+    plt.figure()
     plt.plot(steps, losses)
     plt.xlabel("Step")
     plt.ylabel("Loss")
     plt.show()
 
-    return (LabeledGaussianMixture,)
+    return
 
 
 @app.cell

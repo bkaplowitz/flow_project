@@ -160,7 +160,6 @@ class Trainer(ABC):
         losses: list[Tensor] = []
         # Train loop
         pbar = tqdm(enumerate(range(num_epochs)))
-        print("Beginning training")
         for idx, step in pbar:
             # Update lr
             if warmup_steps > 0 and step < warmup_steps:

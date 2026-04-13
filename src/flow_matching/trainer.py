@@ -129,10 +129,10 @@ class CFGTrainer(Trainer):
         # Sample x1,y from p1
         x1, y = self.path.p1.sample(batch_size)
         # Set labels to null with prob eta
-        probs = torch.rand_like(y, device=x1.device)
+        probs = torch.rand(batch_size, device=x1.device)
         y[probs < self.eta] = self.null_label
         # Sample t, x
-        t = torch.rand_like(y, device=x1.device)
+        t = torch.rand(batch_size, device=x1.device)
         xt = self.path.sample_conditional_path(x1, t)
         u_theta = self.model(xt, t, y)
         u_ref = self.path.conditional_vector_field(xt, x1, t)
