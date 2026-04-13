@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.22.4"
+__generated_with = "0.23.1"
 app = marimo.App()
 
 
@@ -95,12 +95,69 @@ def _(MNISTSampler, make_grid, th):
 
     sample_mnist_paths()
 
+    return (
+        GaussianConditionalLabeledProbabilityPath,
+        LinearAlpha,
+        LinearBeta,
+        plt,
+    )
+
+
+@app.cell
+def _(
+    GaussianConditionalLabeledProbabilityPath,
+    LinearAlpha,
+    LinearBeta,
+    plt,
+    th,
+):
+    # classifier free guidance
+    import math
+
+    from flow_matching.distributions import LabeledGaussianMixture
+    from flow_matching.models import MLPConditionalVectorField
+    from flow_matching.trainer import CFGTrainer
+    from flow_matching.utils import get_device
+
+    def train_gmm():
+        device = get_device()
+
+        # Initialize GMM
+        angles: list[float] = [0.0, 2 * math.pi / 3, 4 * math.pi / 3]
+        means = 2 * th.tensor([[math.cos(a), math.sin(a)] for a in angles])
+        covs = th.tensor([0.2, 0.2, 0.2])
+        weights = th.tensor([1 / 3, 1 / 3, 1 / 3])
+        gmm = LabeledGaussianMixture(means, covs, weights).to(device)
+
+        # Initialize path
+        path = GaussianConditionalLabeledProbabilityPath(
+            gmm, alpha=LinearAlpha(), beta=LinearBeta(), p0_shape=[2]
+        ).to(device)
+        vector_field = MLPConditionalVectorField(
+            dim=2, hidden_dim=2, class_dim=2, num_classes=3
+        ).to(device)
+        # Train vector field
+        trainer = CFGTrainer(model=vector_field, path=path, eta=0.25, null_label=3)
+        steps, losses = trainer.train(
+            model=vector_field, num_epochs=3_000, lr=1e-3, batch_size=250, device=device
+        )
+        return steps, losses
+
+    steps, losses = train_gmm()
+    plt.plot(steps, losses)
+    plt.xlabel("Step")
+    plt.ylabel("Loss")
+    plt.show()
+
     return
 
 
 @app.cell
-def _():
-    # classifier free guidance
+def _(gmm, plt):
+    # Visualize results
+    def visualize_results():
+        _fig, axes = plt.subplots(1, 3, figsize=(6 * 3, 6))
+        x_data, _ = gmm.sample(250)
 
     return
 

@@ -215,7 +215,7 @@ class LabeledGaussianMixture(nn.Module, LabeledSampleable):
             mode_i_draws = labels == mode_i
             # Samples just at mode i depending on # of times drawn
             samples[mode_i_draws] = (
-                torch.rand_like(samples[mode_i_draws]) * self.covs[mode_i] + self.means[mode_i]
+                torch.randn_like(samples[mode_i_draws]) * self.covs[mode_i] + self.means[mode_i]
             )
         return samples, labels
 

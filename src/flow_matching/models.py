@@ -2,18 +2,26 @@
 
 import torch
 from torch import Tensor, nn
+from torch.nn import Sequential
 
 from flow_matching.base.paths import Alpha, Beta
 
 
-def make_mlp(dims: list[int], activation: type[nn.Module] = nn.SiLU) -> nn.Sequential:
+def make_mlp(
+    dims: list[int], activation: type[nn.Module] = nn.SiLU, final_init: bool = False
+) -> nn.Sequential:
     layers = []
     final_idx = len(dims) - 2
     for idx in range(len(dims) - 1):
         layers.append(nn.Linear(dims[idx], dims[idx + 1]))
         if idx < final_idx:
             layers.append(activation())
-    return nn.Sequential(*layers)
+
+    net = nn.Sequential(*layers)
+    if final_init:
+        nn.init.zeros_(net[-1].weight)
+        nn.init.zeros_(net[-1].bias)
+    return net
 
 
 class MLPVectorField(nn.Module):
@@ -108,4 +116,23 @@ class ScoreFromVectorField(nn.Module):
 
 
 class MLPConditionalVectorField(nn.Module):
-    pass
+    def __init__(self, dim: int, hidden_dim: int, class_dim: int, num_classes: int):
+        super().__init__()
+        self.mlp: Sequential = make_mlp(
+            [dim + class_dim + 1, hidden_dim, hidden_dim, dim]
+        )  # [x,embed(y), t]
+        self.class_embedding = nn.Embedding(num_classes + 1, class_dim)  # num_classes + null
+
+    def forward(self, x: Tensor, t: Tensor, y: Tensor) -> Tensor:
+        """Compute conditional vector field.
+
+        Args:
+            - x: shape (bs, dims)
+            - t: shape (bs,)
+            - y: shape (bs,)
+
+        Returns:
+            - u_t^{theta}(x|y): (b,c,h,w)
+        """
+        embed_y: Tensor = self.class_embedding(y)
+        return self.mlp(torch.cat([x, embed_y, t.unsqueeze(-1)], dim=-1))

@@ -129,11 +129,20 @@ class CFGTrainer(Trainer):
         # Sample x1,y from p1
         x1, y = self.path.p1.sample(batch_size)
         # Set labels to null with prob eta
-        probs = torch.rand_like(y)
+        probs = torch.rand_like(y, device=x1.device)
         y[probs < self.eta] = self.null_label
         # Sample t, x
-        t = torch.rand_like(x1)
+        t = torch.rand_like(y, device=x1.device)
         xt = self.path.sample_conditional_path(x1, t)
         u_theta = self.model(xt, t, y)
         u_ref = self.path.conditional_vector_field(xt, x1, t)
         return torch.nn.functional.mse_loss(u_theta, u_ref)
+
+    def checkpoint(self, step: int) -> None:
+        if self.output_dir is None:
+            raise ValueError("output dir must be provided.")
+        if self.opt is None:
+            raise ValueError("Didn't find optimizer.")
+        torch.save(self.model.state_dict(), self.output_dir / f"step_{step:6d}_model.pt")
+        torch.save(self.opt.state_dict(), self.output_dir / f"step_{step:6d}_opt.pt")
+        # Save output visualization
