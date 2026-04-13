@@ -150,13 +150,13 @@ def _(
     plt.ylabel("Loss")
     plt.show()
 
-    return (gmm,)
+    return (LabeledGaussianMixture,)
 
 
 @app.cell
-def _(gmm, plt):
+def _(LabeledGaussianMixture, plt):
     # Visualize results
-    def visualize_results():
+    def visualize_results(gmm: LabeledGaussianMixture):
         _fig, axes = plt.subplots(1, 3, figsize=(6 * 3, 6))
         x_data, _ = gmm.sample(250)
 
