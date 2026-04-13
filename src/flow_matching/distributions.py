@@ -210,13 +210,11 @@ class LabeledGaussianMixture(nn.Module, LabeledSampleable):
         ).to(self.means.device)
 
         # Sample from each mode
-        samples = torch.zeros(num_samples, self.dim).to(self.means.device)
-        for mode_i in range(len(self.means)):
-            mode_i_draws = labels == mode_i
-            # Samples just at mode i depending on # of times drawn
-            samples[mode_i_draws] = (
-                torch.randn_like(samples[mode_i_draws]) * self.covs[mode_i] + self.means[mode_i]
-            )
+        # samples = torch.zeros(num_samples, self.dim).to(self.means.device)
+        selected_means = self.means[labels]
+        selected_covs = self.covs[labels]
+        # Broadcasts batched means, covs correctly in vectorized form so each drawing from own mode.
+        samples = D.MultivariateNormal(loc=selected_means, covariance_matrix=selected_covs).sample()
         return samples, labels
 
     @classmethod

@@ -50,7 +50,7 @@ def _():
             labels = th.tensor(labels, dtype=th.int64).to(self.dummy.device)
             return samples, labels
 
-    return MNISTSampler, make_grid, th
+    return MNISTSampler, Tensor, make_grid, th
 
 
 @app.cell
@@ -63,7 +63,7 @@ def _(MNISTSampler, make_grid, th):
         LinearBeta,
     )
 
-    def sample_mnist_paths(num_rows=3, num_cols=3, num_timesteps=5):
+    def sample_mnist_paths(num_rows: int = 3, num_cols: int = 3, num_timesteps: int = 5) -> None:
         device = th.device(
             "cuda" if th.cuda.is_available() else "mps" if th.backends.mps.is_available() else "cpu"
         )
@@ -108,6 +108,7 @@ def _(
     GaussianConditionalLabeledProbabilityPath,
     LinearAlpha,
     LinearBeta,
+    Tensor,
     plt,
     th,
 ):
@@ -119,13 +120,13 @@ def _(
     from flow_matching.trainer import CFGTrainer
     from flow_matching.utils import get_device
 
-    def train_gmm():
+    def train_gmm() -> tuple[list[int], list[Tensor], LabeledGaussianMixture]:
         device = get_device()
 
         # Initialize GMM
         angles: list[float] = [0.0, 2 * math.pi / 3, 4 * math.pi / 3]
         means = 2 * th.tensor([[math.cos(a), math.sin(a)] for a in angles])
-        covs = th.tensor([0.2, 0.2, 0.2])
+        covs = th.diag(th.tensor([0.2, 0.2])).expand(3, -1, -1)
         weights = th.tensor([1 / 3, 1 / 3, 1 / 3])
         gmm = LabeledGaussianMixture(means, covs, weights).to(device)
 
@@ -141,15 +142,15 @@ def _(
         steps, losses = trainer.train(
             model=vector_field, num_epochs=3_000, lr=1e-3, batch_size=250, device=device
         )
-        return steps, losses
+        return steps, losses, gmm
 
-    steps, losses = train_gmm()
+    steps, losses, gmm = train_gmm()
     plt.plot(steps, losses)
     plt.xlabel("Step")
     plt.ylabel("Loss")
     plt.show()
 
-    return
+    return (gmm,)
 
 
 @app.cell
