@@ -136,3 +136,43 @@ class MLPConditionalVectorField(nn.Module):
         """
         embed_y: Tensor = self.class_embedding(y)
         return self.mlp(torch.cat([x, embed_y, t.unsqueeze(-1)], dim=-1))
+
+
+# Patch-based Diffusion Transformer (DiT) Related functions
+
+
+class FourierEncoder(nn.Module):
+    """Embeds a scalar 't' into a fourier space with learnable weights.
+
+    Based on https://github.com/lucidrains/denoising-diffusion-pytorch/blob/main/denoising_diffusion_pytorch/karras_unet.py#L183
+    """
+
+    def __init__(self, embedding_dim: int):
+        """Takes an embedding_dim of value 2d. Must be positive, even.
+
+        Args:
+            - embedding_dim: Number of cos + sin embeddings total to take scalar t into.
+            One for each batch.
+        """
+        super().__init__()
+        assert embedding_dim % 2 == 0, "must be even."
+        self.half_dim = embedding_dim // 2  # "d"
+        self.weights = nn.Parameter(torch.randn(1, self.half_dim))
+
+    def forward(self, t: Tensor) -> Tensor:
+        """Takes a tensor of time of size (bs,) and returns an embedding of size (bs, dim).
+
+        Args:
+            - t: shape (bs,)
+
+        Returns:
+            - embeddings: shape (bs, 2d)
+
+        """
+        freqs = (2 * torch.pi * self.weights * t).expand(-1, 1)
+        embds = [torch.cos(freqs), torch.sin(freqs)]
+        return torch.cat(embds, dim=1)  # bs, embedding_dim / bs, 2d
+
+
+class Patchifier:
+    pass

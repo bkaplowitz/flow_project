@@ -6,15 +6,17 @@ import torch
 from torch import Tensor
 from tqdm.auto import tqdm
 
+from flow_matching import ConditionalVectorFieldSDE
+
 # from tqdm.gui import tqdm_gui
-from flow_matching.base.dynamics import ODE, SDE
+from flow_matching.base.dynamics import ODE, SDE, ConditionedODE
 from flow_matching.base.simulator import Simulator
 
 
 class EulerSimulator(Simulator):
     """Euler method for ODE simulation. Integrades ODE."""
 
-    def __init__(self, ode: ODE):
+    def __init__(self, ode: ODE | ConditionedODE):
         self.ode = ode
 
     def step(self, xt: Tensor, t: Tensor, dt: Tensor, **kwargs) -> Tensor:
@@ -25,7 +27,7 @@ class EulerSimulator(Simulator):
 class EulerMaruyamaSimulator(Simulator):
     """Euler-Maruyama method for SDE Simulation. Integrates SDE."""
 
-    def __init__(self, sde: SDE):
+    def __init__(self, sde: SDE | ConditionalVectorFieldSDE):
         self.sde = sde
 
     def step(self, xt: Tensor, t: Tensor, dt: Tensor, **kwargs) -> Tensor:

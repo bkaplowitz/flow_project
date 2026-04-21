@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.23.2"
 app = marimo.App()
 
 
@@ -118,8 +118,15 @@ def _(
     from flow_matching.models import MLPConditionalVectorField
     from flow_matching.trainer import CFGTrainer
     from flow_matching.utils import get_device
+    # Lbgm: labeled gaussian mixture
 
-    def train_gmm() -> tuple[list[int], list[Tensor], LabeledGaussianMixture]:
+    def train_gmm() -> tuple[
+        list[int],
+        list[Tensor],
+        LabeledGaussianMixture,
+        MLPConditionalVectorField,
+        GaussianConditionalLabeledProbabilityPath,
+    ]:
         device = get_device()
 
         # Initialize GMM
@@ -141,31 +148,124 @@ def _(
         steps, losses = trainer.train(
             model=vector_field, num_epochs=3_000, lr=1e-3, batch_size=250, device=device
         )
-        return steps, losses, gmm
+        return steps, losses, gmm, vector_field, path
 
-    steps, losses, gmm = train_gmm()
+    steps_lbgm, losses_lbgm, gmm_lbgm, vf_lbgm, path_lbgm = train_gmm()
 
-    return LabeledGaussianMixture, losses, steps
+    return (
+        LabeledGaussianMixture,
+        MLPConditionalVectorField,
+        get_device,
+        losses_lbgm,
+        steps_lbgm,
+    )
 
 
 @app.cell
-def _(losses, plt, steps):
+def _(losses_lbgm, plt, steps_lbgm, th):
     plt.figure()
-    plt.plot(steps, losses)
+    # Stack as list of dim 0 tensors and dim 0 cannot be concatenated.
+    losses_vec_lbgm = th.stack(losses_lbgm, dim=0).detach().cpu().numpy()
+    plt.plot(steps_lbgm, losses_vec_lbgm)
     plt.xlabel("Step")
     plt.ylabel("Loss")
+    plt.title("Losses, GMM")
     plt.show()
 
     return
 
 
 @app.cell
-def _(LabeledGaussianMixture, plt):
+def _(
+    LabeledGaussianMixture,
+    MLPConditionalVectorField,
+    get_device,
+    plt,
+    th,
+    x_init,
+):
     # Visualize results
-    def visualize_results(gmm: LabeledGaussianMixture):
-        _fig, axes = plt.subplots(1, 3, figsize=(6 * 3, 6))
-        x_data, _ = gmm.sample(250)
+    from flow_matching import EulerSimulator
+    from flow_matching.base.paths import ConditionalLabeledProbabilityPath
+    from flow_matching.flows import CFGVectorFieldODE
 
+    def visualize_gmm_results(
+        gmm: LabeledGaussianMixture,
+        trained_model: MLPConditionalVectorField,
+        path: ConditionalLabeledProbabilityPath,
+        guidance_strength: float = 1.0,
+        null_label: int = 3,
+        batch_size: int = 250,
+    ):
+        device = get_device()
+        fig, axs = plt.subplots(1, 3, figsize=(6 * 3, 6))
+        x1, _ = gmm.sample(batch_size)
+        x1 = x1.detach().cpu().numpy()
+        # Target
+        t_ax = axs[0]
+        t_ax.scatter(x1[:, 0], x1[:, 1], s=5, marker="*")
+        t_ax.set_title("Target")
+        # Panel 2: Condition CFG on each mode of LabeledGaussianMixture
+        cond_ax = axs[1]
+        vector_field = CFGVectorFieldODE(
+            trained_model, guidance_scale=guidance_strength, null_label=null_label
+        )
+        simulator = EulerSimulator(vector_field)
+        # Duplicates each entry n times after.
+        # Block structure of [v_class_1,v_class_2, v_class_3]
+        labels = th.arange(3).repeat_interleave(batch_size).to(device)
+        x0 = path.p0.sample(3 * batch_size)  # (b 2) [bs , dims]
+        ts = th.linspace(0, 1, 100).expand(3 * batch_size, -1).to(device)  # (bs, n_classes, t)
+        xs = simulator.simulate(x0, ts, y=labels).detach().cpu().numpy()
+        for idx in range(3):
+            xs_idx = xs[idx * batch_size : (idx + 1) * batch_size].detach().cpu().numpy()
+            cond_ax.scatter(xs_idx[:, 0], xs_idx[:, 1], s=5, label=f"Mode {idx}", marker="*")
+        cond_ax.legend()
+        cond_ax.set_title(f"CFG w/ Guidance Strength {guidance_strength:.2f}")
+
+        # Panel 3 unconditioned
+        uncond_ax = axs[2]
+        batch_size_uncond = 3 * batch_size
+        labels = th.ones(batch_size_uncond).long().to(device) * 3
+        x0 = path.p0.sample(batch_size_uncond)
+        ts = th.linspace(0, 1, 100).expand(batch_size_uncond, -1).to(device)  # (bs, n_classes, t)
+        xs = simulator.simulate(x_init, ts, y=labels).detach().cpu().numpy()  # (bs 2)
+        uncond_ax.scatter(xs[:, 0], xs[:, 1], s=5, label=f"Mode {null_label}", marker="*")
+        uncond_ax.set_title("Unguided Samples")
+        fig.show()
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Making a Diffusion Transformer
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    We start with a fourier encoder for time which maps a scalar time $t \in [0,1]$
+     to an embedding of size 2d:
+    $$
+    t^{emb} = [\cos(2\pi w_1 t),\dots,\cos(2\pi w_d t), \sin(2\pi w_1 t),\dots,\sin(2\pi w_d t)]^T
+    $$
+    where $w_i \overset{iid}{\sim} \mathcal{N}(0,1)$
+    for d weights.
+    """)
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
     return
 
 
