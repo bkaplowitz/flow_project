@@ -1,6 +1,7 @@
 """Implements torch models for flow and score matching."""
 
 import torch
+from einops.layers.torch import Rearrange
 from torch import Tensor, nn
 from torch.nn import Sequential
 
@@ -174,5 +175,38 @@ class FourierEncoder(nn.Module):
         return torch.cat(embds, dim=1)  # bs, embedding_dim / bs, 2d
 
 
-class Patchifier:
-    pass
+class Patchifier(nn.Module):
+    def __init__(self, img_size: int, patch_size: int, c_in: int, dim: int):
+        """Takes an image valued tensor of shape b, c, 32, 32.
+
+        It patchifies it to shape b (h/p * w/p) d
+        where d is diffusion hidden transformer dim.
+        It first applies a convolutional layer mapping the input of shape (b c 32 32) to
+        b d h/p w/p
+        and then rearranges from b d h/p w/p to
+        b (h/p w/p) d = b n d, n tokens of dim d.
+        """
+        super().__init__()
+        assert img_size % patch_size == 0, "Image size must be divisible by patch size"
+        assert patch_size >= 1, "Patch size must be equal to or larger than 1"
+        #  H_out = floor((H_in + 2 padding - dilation (kernel_size - 1) -1 )+stride)/ stride
+        # So we want stride = patch_size to tile the space.
+        # We don't need any padding as the space is already divisible by 0.  padding=0
+        # and this yields floor((H_in -(kernel_size-1) - 1 + stride)/stride) for dilation 1.
+        # This simplifies to floor(H_in / patch_size) =  H_in / patch_size
+
+        self.conv = torch.nn.Conv2d(
+            in_channels=c_in, out_channels=dim, kernel_size=patch_size, stride=patch_size, padding=0
+        )
+        self.rearrange = Rearrange("b d h_out w_out-> b (h_out w_out) d")
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Computes patchified version.
+
+        Args:
+        - x: (bs, c_in, img_size, img_size)
+
+        Returns:
+        - x: (bs, (img_width / patch_size * img_height/patch_size), d)
+        """
+        return self.rearrange(self.conv(x))
