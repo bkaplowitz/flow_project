@@ -167,12 +167,13 @@ class FourierEncoder(nn.Module):
             - t: shape (bs,)
 
         Returns:
-            - embeddings: shape (bs, 2d)
+            - embeddings: shape (bs, 2d), 2d is embedding dim
 
         """
         freqs = (2 * torch.pi * self.weights * t).expand(-1, 1)
+        scale = torch.sqrt(2 / self.half_dim)  # Ensures embedding sums to 1
         embds = [torch.cos(freqs), torch.sin(freqs)]
-        return torch.cat(embds, dim=1)  # bs, embedding_dim / bs, 2d
+        return scale * torch.cat(embds, dim=1)  # bs, embedding_dim / bs, 2d
 
 
 class Patchifier(nn.Module):
@@ -210,3 +211,103 @@ class Patchifier(nn.Module):
         - x: (bs, (img_width / patch_size * img_height/patch_size), d)
         """
         return self.rearrange(self.conv(x))
+
+
+class MHA(nn.Module):
+    """A nn module for multi-headed self-attention."""
+
+    def __init__(self, dim: int, heads: int):
+        """Initializes a multi-headed self-attention architecture block.
+
+        Args:
+            - dims: dimension of hidden layers
+            - heads: number of heads
+        """
+        super().__init__()
+        assert dim % heads == 0
+        raise NotImplementedError("Fill me in.")
+
+
+class DiffusionTransformerLayer(nn.Module):
+    """A NN module implementing a DiT block."""
+
+    def __init__(self, dim: int, heads: int):
+        """Initializes a DiT Layer.
+
+        Args:
+            - dim: dimension of hidden layers
+            - heads: number of attention heads
+        """
+        super().__init__()
+        self.ffn = MLPVectorField(dim, [dim, 4 * dim, dim])
+        self.mlp_conditioning = make_mlp(
+            [dim, 4 * dim, 6 * dim], final_init=True
+        )  # initialize to 0s in final layer.
+        self.mha = MHA(dim, heads)
+
+        # Initialize to 0 last layer done in self.mlp
+
+    def forward(self, x: Tensor, c: Tensor) -> Tensor:
+        """Computes the output of a diffusion transformer layer.
+
+        Args:
+            - x: b n d
+            - c: b d
+        Returns:
+            - x: b n d
+        """
+        # Conditioning gating, scaling and bias
+        tokens_normed = torch.nn.functional.layer_norm(x)
+        shift_scale_bias = self.mlp_conditioning(c)
+        # Get coefficients
+        # each shape (b,d ) from output (b,6d)
+        gamma_1, beta_1, alpha_1, gamma_2, beta_2, alpha_2 = torch.split(shift_scale_bias, 6, dim=1)
+        # Shift and scale tokens normed
+        # Attention + residual
+        scaled_cond_latent = tokens_normed * (1 + gamma_1) + beta_1
+        scaled_mha = self.mha(scaled_cond_latent) * alpha_1
+        x = x + scaled_mha
+        # feedforward + residual
+        normed_x = torch.nn.functional.layer_norm(x)
+        shift_scaled_ff_input = normed_x * (1 + gamma_2) + beta_2
+        ff_out = alpha_2 * self.ffn(shift_scaled_ff_input)
+        return x + ff_out
+
+
+class DiffusionTransformer(nn.Module):
+    """A NN Module implementing a latent diffusion transformer."""
+
+    def __init__(self, depth: int, n_tokens: int, dim: int, **layer_kwargs):
+        """Constructs a diffusion transformer DiT.
+
+        Args:
+            - n_tokens: sequence length for positional embeddings
+            - dim: dimension of hidden layers
+            - heads: number of attention heads
+            - depth: number of hidden layers
+
+        After patchifying our data is in shape (b,n,d), where:
+        - b is batch size
+        - n is # of tokens per image
+        - d is dim of tokens.
+        """
+        super().__init__()
+        self.n_tokens = n_tokens
+        self.depth = depth
+        self.dim = dim
+        heads = layer_kwargs["heads"]
+        self.dit_layers = nn.Sequential([DiffusionTransformerLayer(dim, heads) for _ in depth])
+
+    def forward(self, x: Tensor, c: Tensor) -> Tensor:
+        """Takes in patchified latent vars and embedded t,y.
+
+        (either direct if classes, else prelearned and frozen clip for text)
+        and returns u of shape C x H x W for predicted flow.
+
+        Args:
+            - x: patchified latent var, shape b, n, dim
+            - c: conditioning embeddings (time + y_labels): shape b, dim
+        Returns:
+            - u: patchified predicted flow, shape b n d
+        """
+        return self.dit_layers(x, c)
