@@ -20,8 +20,8 @@ def make_mlp(
 
     net = nn.Sequential(*layers)
     if final_init:
-        nn.init.zeros_(net[-1].weight)
-        nn.init.zeros_(net[-1].bias)
+        nn.init.zeros_(net[-1].weight)  # type:ignore
+        nn.init.zeros_(net[-1].bias)  # type:ignore
     return net
 
 
@@ -171,7 +171,7 @@ class FourierEncoder(nn.Module):
 
         """
         freqs = (2 * torch.pi * self.weights * t).expand(-1, 1)
-        scale = torch.sqrt(2 / self.half_dim)  # Ensures embedding sums to 1
+        scale = torch.sqrt(2 / torch.tensor(self.half_dim))  # Ensures embedding sums to 1
         embds = [torch.cos(freqs), torch.sin(freqs)]
         return scale * torch.cat(embds, dim=1)  # bs, embedding_dim / bs, 2d
 
@@ -257,18 +257,19 @@ class DiffusionTransformerLayer(nn.Module):
             - x: b n d
         """
         # Conditioning gating, scaling and bias
-        tokens_normed = torch.nn.functional.layer_norm(x)
+        tokens_normed = torch.nn.functional.layer_norm(x, normalized_shape=x.shape[1:])
         shift_scale_bias = self.mlp_conditioning(c)
         # Get coefficients
         # each shape (b,d ) from output (b,6d)
         gamma_1, beta_1, alpha_1, gamma_2, beta_2, alpha_2 = torch.split(shift_scale_bias, 6, dim=1)
+        # gamma -- scale in, beta shift in, alpha scaled out computed from mlp of conditioning vars.
         # Shift and scale tokens normed
         # Attention + residual
         scaled_cond_latent = tokens_normed * (1 + gamma_1) + beta_1
         scaled_mha = self.mha(scaled_cond_latent) * alpha_1
         x = x + scaled_mha
         # feedforward + residual
-        normed_x = torch.nn.functional.layer_norm(x)
+        normed_x = torch.nn.functional.layer_norm(x, x.shape[1:])
         shift_scaled_ff_input = normed_x * (1 + gamma_2) + beta_2
         ff_out = alpha_2 * self.ffn(shift_scaled_ff_input)
         return x + ff_out
@@ -296,7 +297,9 @@ class DiffusionTransformer(nn.Module):
         self.depth = depth
         self.dim = dim
         heads = layer_kwargs["heads"]
-        self.dit_layers = nn.Sequential([DiffusionTransformerLayer(dim, heads) for _ in depth])
+        self.dit_layers = nn.Sequential(
+            *(DiffusionTransformerLayer(dim, heads) for _ in range(depth))
+        )
 
     def forward(self, x: Tensor, c: Tensor) -> Tensor:
         """Takes in patchified latent vars and embedded t,y.
