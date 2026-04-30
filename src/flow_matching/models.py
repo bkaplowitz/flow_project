@@ -1,5 +1,7 @@
 """Implements torch models for flow and score matching."""
 
+import math
+
 import torch
 from einops.layers.torch import Rearrange
 from torch import Tensor, nn
@@ -125,7 +127,7 @@ class MLPConditionalVectorField(nn.Module):
         self.class_embedding = nn.Embedding(num_classes + 1, class_dim)  # num_classes + null
 
     def forward(self, x: Tensor, t: Tensor, y: Tensor) -> Tensor:
-        """Compute conditional vector field.
+        r"""Compute conditional vector field.
 
         Args:
             - x: shape (bs, dims)
@@ -133,7 +135,7 @@ class MLPConditionalVectorField(nn.Module):
             - y: shape (bs,)
 
         Returns:
-            - u_t^{theta}(x|y): (b,c,h,w)
+            - u_t^{\theta}(x|y): (b,c,h,w)
         """
         embed_y: Tensor = self.class_embedding(y)
         return self.mlp(torch.cat([x, embed_y, t.unsqueeze(-1)], dim=-1))
@@ -213,19 +215,71 @@ class Patchifier(nn.Module):
         return self.rearrange(self.conv(x))
 
 
-class MHA(nn.Module):
+class SingleHeadAttention(nn.Module):
+    def __init__(self, in_dim: int, dim: int):
+        """Computes attention for single head."""
+        super().__init__()
+        self.Linear_Q = nn.Linear(in_dim, dim)
+        self.Linear_K = nn.Linear(in_dim, dim)
+        self.Linear_V = nn.Linear(in_dim, dim)
+
+    def forward(self, Q, K, V, mask=None, dropout=None):
+        Q_proj = self.Linear_Q(Q)
+        K_proj = self.Linear_K(K)
+        V_proj = self.Linear_V(V)
+        dk = Q_proj.shape[-1]
+        scores = Q_proj @ K_proj.transpose(-2, -1) / math.sqrt(dk)  # shape (batch, dk)
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, value=-1e-9)
+        p_attn = nn.functional.softmax(scores, dim=-1)
+        if dropout is not None:
+            p_attn = dropout(p_attn)
+        out = torch.matmul(p_attn, V_proj)
+        return out
+
+
+class MultiHeadAttention(nn.Module):
     """A nn module for multi-headed self-attention."""
 
-    def __init__(self, dim: int, heads: int):
+    def __init__(self, in_dim: int, dim: int, heads: int):
         """Initializes a multi-headed self-attention architecture block.
 
         Args:
+            - in_dim: size of input
             - dims: dimension of hidden layers
             - heads: number of heads
         """
         super().__init__()
         assert dim % heads == 0
-        raise NotImplementedError("Fill me in.")
+        attn_dim = dim // heads
+        self.attention_heads = nn.ModuleList(
+            [SingleHeadAttention(in_dim, attn_dim) for _ in range(heads)]
+        )
+        self.linear_out = nn.Linear(dim, in_dim)
+
+        def forward(self, Q: Tensor, K: Tensor, V: Tensor, mask=None, dropout=None):
+
+            list_scores = [head(Q, K, V, mask, dropout) for head in self.attention_heads]
+            scores = torch.cat(list_scores, dim=-1)
+            out = self.linear_out(scores)
+            return out
+
+
+class MHA(nn.Module):
+    def __init__(self, dim: int, heads: int, qkv_bias: bool = False):
+        super().__init__()
+        self.W_Q = nn.Linear(dim, dim, bias=qkv_bias)
+        self.W_KV = nn.Linear(dim, dim, bias=qkv_bias)
+        self.attention = MultiHeadAttention(dim, dim, heads)
+
+    def forward(self, x: Tensor, mask=None, dropout=None) -> Tensor:
+        # x: shape b n d
+        b, n, d = x.shape
+
+        Q = self.W_Q(x)
+        kv = self.W_KV(x).reshape(b, -1, 2, d).permute(2, 0, 1, 3)
+        K, V = kv[0], kv[1]  # shapes (b,  n/2, dim)
+        return self.attention(Q, K, V, mask, dropout)
 
 
 class DiffusionTransformerLayer(nn.Module):
