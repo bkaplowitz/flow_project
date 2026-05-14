@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.2"
+__generated_with = "0.23.3"
 app = marimo.App()
 
 
@@ -266,7 +266,10 @@ def _():
 
 @app.cell
 def _():
-    return
+    # Training utils for DiT
+    from torchvision.utils import make_grid
+
+    return (make_grid,)
 
 
 if __name__ == "__main__":

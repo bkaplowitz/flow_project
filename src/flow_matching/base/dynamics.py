@@ -3,6 +3,8 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from torch import nn
+
 if TYPE_CHECKING:
     from torch import Tensor
 
@@ -40,6 +42,23 @@ class ConditionedODE(ABC):
             drift coefficient shape (bs, ...)
         """
         pass
+
+
+class ConditionalVectorField(nn.Module, ABC):
+    """Conditional vector field u_t^theta(x|y)."""
+
+    @abstractmethod
+    def forward(self, x: Tensor, t: Tensor, y: Tensor) -> Tensor:
+        """Computes u_t^theta(x|y).
+
+        Args:
+        - x: b ...
+        - t: b
+        - y: b
+
+        Returns:
+        - u_t^theta(x|y): b ...
+        """
 
 
 class SDE(ABC):

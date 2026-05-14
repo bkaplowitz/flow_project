@@ -92,7 +92,7 @@ class LearnedVectorFieldODE(ODE):
         """Drift coefficient for LearnedVectorODE.
 
         Args:
-            - x: (bs, dim)
+            - x: (bs, dimConditionalVectorFieldODE)
             - t: (bs, dim)
 
         Returns:

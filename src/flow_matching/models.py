@@ -7,6 +7,7 @@ from einops.layers.torch import Rearrange
 from torch import Tensor, nn
 from torch.nn import Sequential
 
+from flow_matching.base.dynamics import ConditionalVectorField
 from flow_matching.base.paths import Alpha, Beta
 
 
@@ -118,7 +119,7 @@ class ScoreFromVectorField(nn.Module):
         return (self.flow_model(x, t) - a_t * x) / b_t
 
 
-class MLPConditionalVectorField(nn.Module):
+class MLPConditionalVectorField(ConditionalVectorField):
     def __init__(self, dim: int, hidden_dim: int, class_dim: int, num_classes: int):
         super().__init__()
         self.mlp: Sequential = make_mlp(
@@ -332,7 +333,7 @@ class DiffusionTransformerLayer(nn.Module):
 class DiffusionTransformer(nn.Module):
     """A NN Module implementing a latent diffusion transformer."""
 
-    def __init__(self, depth: int, n_tokens: int, dim: int, **layer_kwargs):
+    def __init__(self, depth: int, n_tokens: int, dim: int, heads: int):
         """Constructs a diffusion transformer DiT.
 
         Args:
@@ -350,7 +351,7 @@ class DiffusionTransformer(nn.Module):
         self.n_tokens = n_tokens
         self.depth = depth
         self.dim = dim
-        heads = layer_kwargs["heads"]
+        heads = heads
         self.dit_layers = nn.Sequential(
             *(DiffusionTransformerLayer(dim, heads) for _ in range(depth))
         )
@@ -368,3 +369,97 @@ class DiffusionTransformer(nn.Module):
             - u: patchified predicted flow, shape b n d
         """
         return self.dit_layers(x, c)
+
+
+class DePatchifier(nn.Module):
+    """De-patchifies the image back to pixels."""
+
+    def __init__(self, img_size: int, patch_size: int, dim: int, final_dim: int, c_out: int = 1):
+        """Takes a latent object of b n d back to a valued tensor of shape b, 1, h, w (c_out = 1).
+
+        First, we do a layer norm of b n d.
+        Then we pass through a MLP to obtain b n fp^2 or in other words b (h/p w/p) (f p p).
+        Then rearrange to b f h w.
+        Finally pass through convolution to obtain b 1 h w.
+        """
+        super().__init__()
+        self.patch_size = patch_size
+        assert img_size % patch_size == 0, "Image size must be a multiple of patch size."
+        h_out = img_size // patch_size
+        w_out = img_size // patch_size
+        n = h_out * w_out
+        out_features = final_dim * patch_size**2
+        self.layer_norm = nn.LayerNorm([n, dim])
+        self.mlp = nn.Linear(dim, out_features=out_features)
+        self.rearrange = Rearrange(
+            "b (h_out w_out) (f p p)-> b f h w",
+            p=patch_size,
+            h=img_size,
+            w=img_size,
+            f=final_dim,
+            h_out=h_out,
+            w_out=w_out,
+        )
+        self.conv = nn.Conv2d(in_channels=final_dim, out_channels=c_out, kernel_size=1, stride=1)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Computes the depatchified image.
+
+        Args:
+            - x: b n d
+        Returns:
+            - b 1 32 32
+        """
+        x_normed = self.layer_norm(x)
+        x_final_dim = self.mlp(x_normed)
+        x_reshaped = self.rearrange(x_final_dim)
+        return self.conv(x_reshaped)
+
+
+class DiffusionTransformerFlowModel(ConditionalVectorField):
+    def __init__(
+        self,
+        img_size: int = 32,
+        patch_size: int = 8,
+        num_layers: int = 12,
+        c: int = 1,
+        dim: int = 256,
+        heads: int = 4,
+        final_dim: int = 10,
+        n_classes: int = 10,
+    ):
+        # embeddings
+        n_classes_w_null = n_classes + 1
+        self.time_embedder = FourierEncoder(dim)
+        self.class_embedding = nn.Embedding(num_embeddings=n_classes_w_null, embedding_dim=dim)
+        # Patchifier
+        self.patchifier = Patchifier(img_size, patch_size, c_in=c, dim=dim)
+        # Diffusion Transformer
+        n_tokens = (img_size // patch_size) ** 2  # (w / p * h / p)
+        self.dit = DiffusionTransformer(num_layers, n_tokens, dim, heads)
+        # Depatchifier
+        self.depatchifier = DePatchifier(img_size, patch_size, dim, final_dim)
+        super().__init__()
+
+    def forward(self, x: Tensor, t: Tensor, y: Tensor) -> Tensor:
+        """Computes the entire diffusion transformer flow pipeline drift u_t^theta(x|y).
+
+        Args:
+        - x: b 1 32 32
+        - t: b 1 1 1
+        - c: b 1 1 1
+
+        Returns:
+        - u_t^theta(x|y): b 1 32 32
+        """
+        # Embed time and y
+        embd_t = self.time_embedder(t)  # (bs, 256)
+        y_cond = self.class_embedding(y)  # (bs, 256)
+        c_guiding = embd_t + y_cond  # (bs, 256)
+
+        # Patchify
+        patchified_x = self.patchifier(
+            x
+        )  #  (bs, (img_width / patch_size * img_height/patch_size), d)
+        patchified_out = self.dit(patchified_x, c_guiding)
+        return self.depatchifier(patchified_out)

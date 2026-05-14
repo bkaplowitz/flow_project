@@ -8,6 +8,7 @@ from flow_matching.base.probability import LabeledSampleable
 from flow_matching.base.trainer import Trainer
 from flow_matching.models import MLPScore, MLPVectorField
 from flow_matching.paths import GaussianConditionalLabeledProbabilityPath
+from flow_matching.plot import visualize_output
 
 
 class ConditionalFlowMatchingTrainer(Trainer):
@@ -146,3 +147,20 @@ class CFGTrainer(Trainer):
         torch.save(self.model.state_dict(), self.output_dir / f"step_{step:6d}_model.pt")
         torch.save(self.opt.state_dict(), self.output_dir / f"step_{step:6d}_opt.pt")
         # Save output visualization
+
+
+class MNISTCFGTrainer(CFGTrainer):
+    """CFG Trainer with MNIST-specific callback."""
+
+    def __init__(self, path, eta, null_label, eps=0.001, **kwargs):
+        super().__init__(path, eta, null_label, eps, **kwargs)
+
+    def checkpoint(self, step: int) -> None:
+
+        # save model
+        torch.save(self.model.state_dict(), self.output_dir / f"step_{step:6d}_model.pt")
+        torch.save(self.opt.state_dict(), self.output_dir / f"step_{step:6d}_opt.pt")
+        # SAve output visualization
+        visualize_output(
+            self.model, self.path, save_path=self.output_dir / f"step_{step:6d}_output.png"
+        )

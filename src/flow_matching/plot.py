@@ -13,11 +13,13 @@ from IPython.display import HTML
 from matplotlib import colors
 from matplotlib.colors import Colormap
 from torch import Tensor
+from torchvision.utils import make_grid
 
 from flow_matching.base.dynamics import ODE, SDE
 from flow_matching.base.paths import ConditionalProbabilityPath
 from flow_matching.base.probability import Density, Sampleable
 from flow_matching.distributions import GaussianMixture
+from flow_matching.flows import CFGVectorFieldODE
 from flow_matching.models import MLPScore, ScoreFromVectorField
 from flow_matching.paths import GaussianConditionalProbabilityPath, LinearAlpha, SquareRootBeta
 from flow_matching.simulator import EulerMaruyamaSimulator, EulerSimulator
@@ -877,3 +879,52 @@ def compare_score_from_learned_flow_learned_score(
         ax.set_yticks([])
         # Remove ticks
         # Flow score model
+
+
+@torch.no_grad()
+def visualize_output(
+    model,
+    path,
+    samples_per_class: int = 10,
+    num_timesteps: int = 100,
+    guidance_scales: tuple[float, ...] = (1.0, 3.0, 5.0),
+    save_path: str | None = None,
+    use_tqdm: bool = True,
+):
+    fig, axs = plt.subplots(1, len(guidance_scales), figsize=(10 * len(guidance_scales), 10))
+    for idx, w in enumerate(guidance_scales):
+        # setup ode and simulator
+        ode = CFGVectorFieldODE(model, guidance_scale=w, null_label=10)
+        simulator = EulerSimulator(ode)
+        # Sample initial conditions
+        y = (
+            torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=torch.int64)
+            .repeat_interleave(samples_per_class)
+            .to(device)
+        )
+        num_samples = y.shape[0]
+        x0 = path.p0.sample(num_samples)  # (num_samples, 1, 32, 32)
+
+        # Simulate
+        ts = (
+            torch.linspace(0, 0.999, num_timesteps)
+            .view(1, -1, 1, 1, 1)
+            .expand(num_samples, -1, 1, 1, 1)
+            .to(device)
+        )
+        x1 = simulator.batch_simulate(x0, ts, y=y, use_tqdm=use_tqdm)
+
+        # Plot
+        v_min, v_max = x1.min(), x1.max()
+        x1 = (x1 - v_min) / (v_max - v_min)
+        grid = make_grid(x1, nrow=samples_per_class, normalize=True, value_range=(0, 1))
+        axs[idx].imshow(grid.permute(1, 2, 0).cpu(), cmap="gray")
+        axs[idx].axis("off")
+        axs[idx].set_title(f"Guidance: $w={w:.1f}$", fontsize=25)
+
+        # Save
+        if save_path is not None:
+            plt.savefig(save_path)
+            plt.close()
+        else:
+            plt.show()
