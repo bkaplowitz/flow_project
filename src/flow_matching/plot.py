@@ -1,6 +1,6 @@
 """Plotting helpers."""
 
-from collections.abc import Collection
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -888,7 +888,7 @@ def visualize_output(
     path,
     samples_per_class: int = 10,
     num_timesteps: int = 100,
-    guidance_scales: Collection[float] = (1.0, 3.0, 5.0),
+    guidance_scales: Sequence[float] = (1.0, 3.0, 5.0),
     save_path: str | None = None,
     use_tqdm: bool = True,
 ):
