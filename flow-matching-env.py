@@ -485,7 +485,7 @@ def _(
         axs[2, 0].set_ylabel("Marginal", fontsize=20)
         plt.show()
 
-    plot_linear_model(linear_path)
+    plot_linear_mocdel(linear_path)
 
     return (
         EulerSimulator,
